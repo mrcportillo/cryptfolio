@@ -53,12 +53,7 @@ export default async function NavBar() {
         {!user ? (
           <NavItem path="/api/auth/login">Login</NavItem>
         ) : (
-          <>
-            <NavItem path="/api/auth/logout" danger>
-              Logout
-            </NavItem>
-            <UserAvatar src={user.picture} alt={user.name} />
-          </>
+          <UserAvatar src={user.picture} alt={user.name} />
         )}
       </RightContainer>
     </NavContainer>

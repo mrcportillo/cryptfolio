@@ -10,8 +10,11 @@ export default function Error({ error, reset }) {
 
   return (
     <PageContainer>
-      <h2>Ups!</h2>
-      <button className="bg-slate-300 px-2 py-1 mt-6 rounded-sm" onClick={() => reset()}>
+      <h2>Ups! {error?.message}</h2>
+      <button
+        className="mt-6 rounded-sm bg-slate-300 px-2 py-1"
+        onClick={() => reset()}
+      >
         Try again
       </button>
     </PageContainer>

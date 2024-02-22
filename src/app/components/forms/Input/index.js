@@ -1,13 +1,15 @@
-export default function Input({ id, type, label }) {
+export default function Input({ name, type, label, required }) {
   return (
     <div className="mb-4 flex flex-col">
-      <label htmlFor={id} className="mb-2 text-sm">
+      <label htmlFor={name} className="mb-2 text-sm">
         {label}
       </label>
       <input
         type={type}
-        id={id}
+        step='any'
+        name={name}
         className="rounded border border-gray-300 p-2"
+        required={required}
       />
     </div>
   );

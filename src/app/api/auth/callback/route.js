@@ -1,5 +1,16 @@
-import prisma from "@/services/prisma/client";
 import { handleCallback } from "@auth0/nextjs-auth0";
+import { PrismaClient } from '@prisma/client';
+
+let prisma;
+
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient();
+} else {
+  if (!global.prisma) {
+    global.prisma = new PrismaClient();
+  }
+  prisma = global.prisma;
+}
 
 const upsertUser = async (req, session) => {
   const { user } = session;

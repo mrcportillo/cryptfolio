@@ -2,6 +2,7 @@ export async function request(url, options) {
   const headers = {
     accept: "application/json",
     "accept-language": "en-US,en;q=0.9",
+    "x-cg-demo-api-key": process.env.COIN_API_KEY,
     ...options?.headers,
   };
 

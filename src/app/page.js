@@ -1,8 +1,25 @@
-import Image from "next/image";
 import Link from "next/link";
+import PageContainer from "./components/pages/PageContainer";
+import PageHeaeder from "./components/pages/PageHeader";
+import PageContent from "./components/pages/PageContent";
+import UserAssetsList from "./components/UserAssetsList";
+import Button from "./components/Button";
+import PageTitle from "./components/pages/PageTitle";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24"></main>
+    <PageContainer>
+      <PageHeaeder>
+        <PageTitle>User assets</PageTitle>
+        <div className="ml-8">
+          <Link href="/assets/new">
+            <Button>New asset</Button>
+          </Link>
+        </div>
+      </PageHeaeder>
+      <PageContent>
+        <UserAssetsList />
+      </PageContent>
+    </PageContainer>
   );
 }

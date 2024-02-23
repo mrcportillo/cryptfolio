@@ -1,16 +1,17 @@
 import { getSession } from "@auth0/nextjs-auth0";
+import { headers } from "next/headers";
 import Image from "next/image";
 
 const NavContainer = ({ children }) => (
   <nav className="bg-primary-100 shadow-md">
-    <div className="flex py-2 md:px-4 pr-2">{children}</div>
+    <div className="flex py-2 pr-2 md:px-4">{children}</div>
   </nav>
 );
 
-const NavItem = ({ path, children, danger = false }) => (
+const NavItem = ({ path, children, danger = false, active }) => (
   <a
     href={path}
-    className={`px-3 py-4 text-sm font-medium   ${danger ? "text-rose-700 hover:text-rose-500" : "text-slate-800 hover:text-slate-500"}`}
+    className={`px-3 py-4 text-sm font-medium  ${danger ? "text-rose-700 hover:text-rose-500" : active ? "text-slate-500" : "text-slate-900 hover:text-slate-500"} `}
   >
     {children}
   </a>
@@ -44,11 +45,17 @@ const AppImage = () => (
 
 export default async function NavBar() {
   const { user } = await getSession();
+  const headersList = headers();
+  const fullUrl = headersList.get("referer") || "";
+  const url = new URL(fullUrl);
 
+  const currentPath = url.pathname;
   return (
     <NavContainer>
       <AppImage />
-      <NavItem path="/">Home</NavItem>
+      <NavItem path="/" active={currentPath === "/"}>
+        Home
+      </NavItem>
       <RightContainer>
         {!user ? (
           <NavItem path="/api/auth/login">Login</NavItem>

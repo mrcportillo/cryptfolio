@@ -1,4 +1,4 @@
-export default function Input({ name, type, label, required }) {
+export default function Input({ name, type, label, value, required }) {
   return (
     <div className="mb-4 flex flex-col">
       <label htmlFor={name} className="mb-2 text-sm">
@@ -6,10 +6,11 @@ export default function Input({ name, type, label, required }) {
       </label>
       <input
         type={type}
-        step='any'
+        step="any"
         name={name}
         className="rounded border border-gray-300 p-2"
         required={required}
+        placeholder={value}
       />
     </div>
   );

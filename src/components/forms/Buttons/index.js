@@ -1,7 +1,7 @@
 "use client";
+import Button from "@/components/Button";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
-import Button from "../../Button";
 
 export default function Buttons({ cancelLabel, confirmLabel }) {
   const { pending } = useFormStatus();

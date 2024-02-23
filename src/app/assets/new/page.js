@@ -1,12 +1,12 @@
 import { create } from "@/app/actions/asset";
-import PageContainer from "@/app/components/pages/PageContainer";
-import Buttons from "@/app/components/forms/Buttons";
-import Dropdown from "@/app/components/forms/Dropdown";
-import Input from "@/app/components/forms/Input";
+import PageContainer from "@/components/pages/PageContainer";
+import Buttons from "@/components/forms/Buttons";
+import Dropdown from "@/components/forms/Dropdown";
+import Input from "@/components/forms/Input";
 import list from "@/services/coin/list";
-import PageHeaeder from "@/app/components/pages/PageHeader";
-import PageContent from "@/app/components/pages/PageContent";
-import PageTitle from "@/app/components/pages/PageTitle";
+import PageHeaeder from "@/components/pages/PageHeader";
+import PageContent from "@/components/pages/PageContent";
+import PageTitle from "@/components/pages/PageTitle";
 
 async function getCoinOptions() {
   const coinList = await list(50);

@@ -1,9 +1,9 @@
 import { getSession } from "@auth0/nextjs-auth0";
 import Image from "next/image";
-import PageContainer from "../components/pages/PageContainer";
-import PageHeaeder from "../components/pages/PageHeader";
-import PageContent from "../components/pages/PageContent";
-import PageTitle from "../components/pages/PageTitle";
+import PageContainer from "../../components/pages/PageContainer";
+import PageHeaeder from "../../components/pages/PageHeader";
+import PageContent from "../../components/pages/PageContent";
+import PageTitle from "../../components/pages/PageTitle";
 
 export default async function Profile() {
   const { user } = await getSession();

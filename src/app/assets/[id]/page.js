@@ -1,13 +1,13 @@
 import { update } from "@/app/actions/asset";
-import PageContainer from "@/app/components/pages/PageContainer";
-import Buttons from "@/app/components/forms/Buttons";
-import Dropdown from "@/app/components/forms/Dropdown";
-import Input from "@/app/components/forms/Input";
-import PageHeaeder from "@/app/components/pages/PageHeader";
-import PageContent from "@/app/components/pages/PageContent";
+import PageContainer from "@/components/pages/PageContainer";
+import Buttons from "@/components/forms/Buttons";
+import Dropdown from "@/components/forms/Dropdown";
+import Input from "@/components/forms/Input";
+import PageHeaeder from "@/components/pages/PageHeader";
+import PageContent from "@/components/pages/PageContent";
 import prisma from "@/services/prisma/client";
 import list from "@/services/coin/list";
-import PageTitle from "@/app/components/pages/PageTitle";
+import PageTitle from "@/components/pages/PageTitle";
 
 async function getAssetById(id) {
   return await prisma.userAsset.findUnique({

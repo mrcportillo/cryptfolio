@@ -3,7 +3,7 @@ import Image from "next/image";
 
 const NavContainer = ({ children }) => (
   <nav className="bg-primary-100 shadow-md">
-    <div className="flex py-2 px-4">{children}</div>
+    <div className="flex py-2 md:px-4 pr-2">{children}</div>
   </nav>
 );
 

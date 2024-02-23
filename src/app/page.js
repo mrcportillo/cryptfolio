@@ -11,7 +11,7 @@ export default function Home() {
     <PageContainer>
       <PageHeaeder>
         <PageTitle>User assets</PageTitle>
-        <div className="ml-8">
+        <div className="ml-auto sm:ml-8">
           <Link href="/assets/new">
             <Button>New asset</Button>
           </Link>

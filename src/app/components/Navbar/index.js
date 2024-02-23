@@ -2,8 +2,8 @@ import { getSession } from "@auth0/nextjs-auth0";
 import Image from "next/image";
 
 const NavContainer = ({ children }) => (
-  <nav className="bg-slate-200 shadow-md">
-    <div className="mx-auto flex max-w-7xl p-2 align-middle ">{children}</div>
+  <nav className="bg-primary-100 shadow-md">
+    <div className="flex py-2 px-4">{children}</div>
   </nav>
 );
 

@@ -21,3 +21,25 @@ export async function create(formData) {
   }
   redirect("/");
 }
+
+export async function update(formData) {
+  const assetId = formData.get("id");
+  const updatedAsset = {
+    assetName: formData.get("name"),
+    amount: Number(formData.get("amount")),
+    date: new Date(),
+  };
+
+  try {
+    await prisma.userAsset.update({
+      where: {
+        id: assetId,
+      },
+      data: updatedAsset,
+    });
+  } catch (error) {
+    console.log(error);
+    throw new Error("Error updating asset");
+  }
+  redirect("/");
+}

@@ -24,7 +24,7 @@ async function getAssetPrices(assets) {
   await Promise.all(
     coinIds.map(async (coinId) => {
       const coin = await get(coinId);
-      coinPriceMap.set(coinId, coin.market_data.current_price.usd);
+      coinPriceMap.set(coinId, coin?.market_data?.current_price?.usd);
     }),
   );
   return assets.map((asset) => {

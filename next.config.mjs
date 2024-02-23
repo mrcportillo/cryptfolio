@@ -7,6 +7,11 @@ const nextConfig = {
         hostname: "s.gravatar.com",
         pathname: "**",
       },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "**",
+      },
     ],
   },
 };

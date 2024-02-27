@@ -17,6 +17,16 @@ const BoxTitle = ({ children }) => (
   </div>
 );
 
+const EvolutionDot = ({ evolutionValue }) => (
+  <div
+    className={`h-2 w-2 self-center rounded-full ${evolutionValue > 0 ? "bg-green-600" : "bg-red-600"}`}
+  />
+);
+
+const EvolutionItem = ({ children }) => (
+  <div className="flex space-x-2 align-middle">{children}</div>
+);
+
 export default async function Asset({ params: { id } }) {
   const asset = await getAssetById(id);
   const assetStatus = await get(asset.assetId);
@@ -30,7 +40,7 @@ export default async function Asset({ params: { id } }) {
     <PageContainer>
       <div className="w-full">
         <PageHeaeder>
-          <PageTitle>{asset.assetName || 'Asset detail' }</PageTitle>
+          <PageTitle>{asset.assetName || "Asset detail"}</PageTitle>
           <div className="ml-auto sm:ml-8">
             <Link href={`/assets/${id}/edit`}>
               <Button>Edit</Button>
@@ -93,24 +103,48 @@ export default async function Asset({ params: { id } }) {
             <div className="w-full sm:w-1/4">
               <div className="rounded border p-4">
                 <BoxTitle>Evolution</BoxTitle>
-                <div>
-                  <span>24 hs: </span>
+                <EvolutionItem>
+                  <EvolutionDot
+                    evolutionValue={
+                      assetStatus?.market_data?.price_change_percentage_24h
+                    }
+                  />
+                  <span>24 hs:</span>
                   <span>
-                    {assetStatus?.market_data?.price_change_percentage_24h}
+                    {formatNumber(
+                      assetStatus?.market_data?.price_change_percentage_24h,
+                    )}
+                    %
                   </span>
-                </div>
-                <div>
-                  <span>7 days: </span>
+                </EvolutionItem>
+                <EvolutionItem>
+                  <EvolutionDot
+                    evolutionValue={
+                      assetStatus?.market_data?.price_change_percentage_7d
+                    }
+                  />
+                  <span>7 days:</span>
                   <span>
-                    {assetStatus?.market_data?.price_change_percentage_7d}
+                    {formatNumber(
+                      assetStatus?.market_data?.price_change_percentage_7d,
+                    )}
+                    %
                   </span>
-                </div>
-                <div>
-                  <span>30 days: </span>
+                </EvolutionItem>
+                <EvolutionItem>
+                  <EvolutionDot
+                    evolutionValue={
+                      assetStatus?.market_data?.price_change_percentage_30d
+                    }
+                  />
+                  <span>30 days:</span>
                   <span>
-                    {assetStatus?.market_data?.price_change_percentage_30d}
+                    {formatNumber(
+                      assetStatus?.market_data?.price_change_percentage_30d,
+                    )}
+                    %
                   </span>
-                </div>
+                </EvolutionItem>
               </div>
             </div>
           </div>

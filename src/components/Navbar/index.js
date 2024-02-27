@@ -1,6 +1,7 @@
 "use client";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 const NavContainer = ({ children }) => (
   <nav className="bg-primary-100 shadow-md">
@@ -45,7 +46,7 @@ const AppImage = () => (
 
 export default function NavBar() {
   const { user } = useUser();
-  const currentPath = window.location.pathname;
+  const currentPath = usePathname();
 
   return (
     <NavContainer>

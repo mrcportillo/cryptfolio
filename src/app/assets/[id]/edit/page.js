@@ -5,17 +5,9 @@ import Dropdown from "@/components/forms/Dropdown";
 import Input from "@/components/forms/Input";
 import PageHeaeder from "@/components/pages/PageHeader";
 import PageContent from "@/components/pages/PageContent";
-import prisma from "@/services/prisma/client";
 import list from "@/services/coin/list";
 import PageTitle from "@/components/pages/PageTitle";
-
-async function getAssetById(id) {
-  return await prisma.userAsset.findUnique({
-    where: {
-      id: id,
-    },
-  });
-}
+import { getAssetById } from "@/app/util/db-api";
 
 async function getCoinOptions() {
   const coinList = await list(50);

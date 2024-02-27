@@ -38,8 +38,20 @@ export async function update(formData) {
       data: updatedAsset,
     });
   } catch (error) {
-    console.log(error);
     throw new Error("Error updating asset");
+  }
+  redirect("/");
+}
+
+export async function remove(assetId) {
+  try {
+    await prisma.userAsset.delete({
+      where: {
+        id: assetId,
+      },
+    });
+  } catch (error) {
+    throw new Error("Error deleting asset");
   }
   redirect("/");
 }

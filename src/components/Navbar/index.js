@@ -1,5 +1,5 @@
-import { getSession } from "@auth0/nextjs-auth0";
-import { headers } from "next/headers";
+"use client";
+import { useUser } from "@auth0/nextjs-auth0/client";
 import Image from "next/image";
 
 const NavContainer = ({ children }) => (
@@ -43,18 +43,18 @@ const AppImage = () => (
   />
 );
 
-export default async function NavBar() {
-  const { user } = await getSession();
-  const headersList = headers();
-  const fullUrl = headersList.get("referer") || "";
-  const url = new URL(fullUrl);
+export default function NavBar() {
+  const { user } = useUser();
+  const currentPath = window.location.pathname;
 
-  const currentPath = url.pathname;
   return (
     <NavContainer>
       <AppImage />
       <NavItem path="/" active={currentPath === "/"}>
         Home
+      </NavItem>
+      <NavItem path="/other" active={currentPath === "/other"}>
+        other
       </NavItem>
       <RightContainer>
         {!user ? (

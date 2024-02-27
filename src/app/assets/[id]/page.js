@@ -33,8 +33,8 @@ export default async function Asset({ params: { id } }) {
           </div>
         </PageHeaeder>
         <PageContent>
-          <div className="flex gap-4">
-            <div className="sm:w-full md:w-1/2">
+          <div className="sm:flex-row flex flex-col gap-4">
+            <div className="w-full md:w-1/2">
               <div className="flex rounded border p-4">
                 <div className="mr-8 ">
                   <div>
@@ -82,7 +82,7 @@ export default async function Asset({ params: { id } }) {
                 </div>
               </div>
             </div>
-            <div className="sm:w-full md:w-1/4">
+            <div className="w-full sm:w-1/4">
               <div className="rounded border p-4">
                 <BoxTitle>Evolution</BoxTitle>
                 <div>

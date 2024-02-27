@@ -10,7 +10,7 @@ export default function Home() {
   return (
     <PageContainer>
       <PageHeaeder>
-        <PageTitle>User assets</PageTitle>
+        <PageTitle>Assets</PageTitle>
         <div className="ml-auto sm:ml-8">
           <Link href="/assets/new">
             <Button>New asset</Button>

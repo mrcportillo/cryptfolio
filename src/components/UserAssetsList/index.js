@@ -2,17 +2,11 @@ import prisma from "@/services/prisma/client";
 import { getSession } from "@auth0/nextjs-auth0";
 import AssetPill from "../AssetPill";
 import get from "@/services/coin/get";
+import { getUserAssetsByUserId } from "@/utils/db-api";
 
 async function getUserAssets() {
   const { user } = await getSession();
-  return await prisma.UserAsset.findMany({
-    where: {
-      userId: user.sub,
-    },
-    orderBy: {
-      date: "desc",
-    },
-  });
+  return await getUserAssetsByUserId(user.sub);
 }
 
 async function getAssetPrices(assets) {

@@ -7,7 +7,7 @@ import PageHeaeder from "@/components/pages/PageHeader";
 import PageContent from "@/components/pages/PageContent";
 import list from "@/services/coin/list";
 import PageTitle from "@/components/pages/PageTitle";
-import { getAssetById } from "@/app/util/db-api";
+import { getAssetById } from "@/utils/db-api";
 
 async function getCoinOptions() {
   const coinList = await list(50);

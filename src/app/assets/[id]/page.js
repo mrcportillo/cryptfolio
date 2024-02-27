@@ -1,6 +1,6 @@
 import { remove } from "@/app/actions/asset";
-import { getAssetById } from "@/app/util/db-api";
-import { formatNumber } from "@/app/util/numbers";
+import { getAssetById } from "@/utils/db-api";
+import { formatNumber } from "@/utils/numbers";
 import Button from "@/components/Button";
 import RemoveButton from "@/components/RemoveButton";
 import PageContainer from "@/components/pages/PageContainer";

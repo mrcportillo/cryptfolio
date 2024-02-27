@@ -1,6 +1,8 @@
+import { remove } from "@/app/actions/asset";
 import { getAssetById } from "@/app/util/db-api";
 import { formatNumber } from "@/app/util/numbers";
 import Button from "@/components/Button";
+import RemoveButton from "@/components/RemoveButton";
 import PageContainer from "@/components/pages/PageContainer";
 import PageContent from "@/components/pages/PageContent";
 import PageHeaeder from "@/components/pages/PageHeader";
@@ -18,22 +20,28 @@ const BoxTitle = ({ children }) => (
 export default async function Asset({ params: { id } }) {
   const asset = await getAssetById(id);
   const assetStatus = await get(asset.assetId);
+
+  const removeAsset = async () => {
+    "use server";
+    await remove(id);
+  };
+
   return (
     <PageContainer>
       <div className="w-full">
         <PageHeaeder>
-          <PageTitle>{asset.assetName}</PageTitle>
+          <PageTitle>{asset.assetName || 'Asset detail' }</PageTitle>
           <div className="ml-auto sm:ml-8">
             <Link href={`/assets/${id}/edit`}>
               <Button>Edit</Button>
             </Link>
           </div>
           <div className="ml-4">
-            <Button outline>Remove</Button>
+            <RemoveButton remove={removeAsset}>Remove</RemoveButton>
           </div>
         </PageHeaeder>
         <PageContent>
-          <div className="sm:flex-row flex flex-col gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
             <div className="w-full md:w-1/2">
               <div className="flex rounded border p-4">
                 <div className="mr-8 ">

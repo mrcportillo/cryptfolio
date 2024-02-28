@@ -4,6 +4,7 @@ import PageHeaeder from "../../components/pages/PageHeader";
 import PageContent from "../../components/pages/PageContent";
 import Button from "../../components/Button";
 import PageTitle from "../../components/pages/PageTitle";
+import AssetsListSkeleton from "@/components/skeletons/AssetsListSkeleton";
 
 export default function LoadingHome() {
   return (
@@ -17,7 +18,7 @@ export default function LoadingHome() {
         </div>
       </PageHeaeder>
       <PageContent>
-        <div>loading assets..</div>
+        <AssetsListSkeleton />
       </PageContent>
     </PageContainer>
   );

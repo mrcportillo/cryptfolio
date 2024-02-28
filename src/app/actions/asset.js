@@ -19,7 +19,7 @@ export async function create(formData) {
   } catch (error) {
     throw new Error("Error creating asset");
   }
-  redirect("/");
+  redirect("/home");
 }
 
 export async function update(formData) {
@@ -40,7 +40,7 @@ export async function update(formData) {
   } catch (error) {
     throw new Error("Error updating asset");
   }
-  redirect("/");
+  redirect("/home");
 }
 
 export async function remove(assetId) {
@@ -53,5 +53,5 @@ export async function remove(assetId) {
   } catch (error) {
     throw new Error("Error deleting asset");
   }
-  redirect("/");
+  redirect("/home");
 }

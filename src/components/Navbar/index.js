@@ -51,7 +51,7 @@ export default function NavBar() {
   return (
     <NavContainer>
       <AppImage />
-      <NavItem path="/" active={currentPath === "/"}>
+      <NavItem path="/home" active={currentPath === "/home"}>
         Home
       </NavItem>
       <NavItem path="/other" active={currentPath === "/other"}>

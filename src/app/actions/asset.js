@@ -23,7 +23,32 @@ export async function create(formData) {
 }
 
 export async function update(formData) {
-  const assetId = formData.get("id");
+  const userAssetId = formData.get("id");
+  let asset;
+  try {
+    asset = await prisma.userAsset.findUnique({
+      where: {
+        id: userAssetId,
+      },
+    });
+  } catch (error) {
+    throw new Error("Error getting asset");
+  }
+
+  try {
+    await prisma.assetArchive.create({
+      data: {
+        userAssetId,
+        assetId: asset.assetId,
+        assetName: asset.assetName,
+        amount: asset.amount,
+        date: asset.date,
+      },
+    });
+  } catch (error) {
+    throw new Error("Error creating asset archive");
+  }
+
   const updatedAsset = {
     assetName: formData.get("name"),
     amount: Number(formData.get("amount")),
@@ -33,7 +58,7 @@ export async function update(formData) {
   try {
     await prisma.userAsset.update({
       where: {
-        id: assetId,
+        id: userAssetId,
       },
       data: updatedAsset,
     });

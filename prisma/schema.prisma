@@ -23,4 +23,13 @@ model UserAsset {
     assetName String
     amount Float
     date DateTime @default(now())
+    assetArchive AssetArchive[]
+}
+
+model AssetArchive {
+    id String @default(cuid()) @id
+    userAsset UserAsset @relation(fields: [userAssetId], references: [id])
+    userAssetId String
+    amount Float
+    date DateTime
 }

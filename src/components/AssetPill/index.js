@@ -1,4 +1,5 @@
 "use client";
+import { formatNumber } from "@/utils/numbers";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -33,7 +34,7 @@ export default function AssetPill({ asset }) {
         <AssetAttribute label="Coin" value={asset.assetId} />
         <AssetAttribute label="Amount" value={asset.amount} />
         <AssetAttribute label="Asset value" value={asset.price} />
-        <AssetAttribute label="$" value={asset.amount * asset.price} />
+        <AssetAttribute label="$" value={formatNumber(asset.amount * asset.price)} />
         <AssetAttribute
           label="Last updated"
           value={new Date(asset.date).toDateString()}

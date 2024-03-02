@@ -17,6 +17,7 @@ export async function create(formData) {
       data: newAsset,
     });
   } catch (error) {
+    console.error(error);
     throw new Error("Error creating asset");
   }
   redirect("/home");
@@ -32,6 +33,7 @@ export async function update(formData) {
       },
     });
   } catch (error) {
+    console.error(error);
     throw new Error("Error getting asset");
   }
 
@@ -39,13 +41,12 @@ export async function update(formData) {
     await prisma.assetArchive.create({
       data: {
         userAssetId,
-        assetId: asset.assetId,
-        assetName: asset.assetName,
         amount: asset.amount,
         date: asset.date,
       },
     });
   } catch (error) {
+    console.error(error);
     throw new Error("Error creating asset archive");
   }
 
@@ -63,6 +64,7 @@ export async function update(formData) {
       data: updatedAsset,
     });
   } catch (error) {
+    console.error(error);
     throw new Error("Error updating asset");
   }
   redirect("/home");
@@ -76,6 +78,7 @@ export async function remove(assetId) {
       },
     });
   } catch (error) {
+    console.error(error);
     throw new Error("Error deleting asset");
   }
   redirect("/home");

@@ -103,7 +103,7 @@ export default async function Asset({ params: { id } }) {
             </div>
             <div className="w-full sm:w-1/4">
               <div className="rounded border p-4">
-                <BoxTitle>Evolution</BoxTitle>
+                <BoxTitle>Coin evolution</BoxTitle>
                 <EvolutionItem>
                   <EvolutionDot
                     evolutionValue={

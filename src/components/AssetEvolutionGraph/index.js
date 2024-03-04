@@ -29,7 +29,7 @@ export default function AssetEvolutionGraph({
 }) {
   return (
     <div>
-      <h2 className="text-xl text-primary-950">Evolution</h2>
+      <h2 className="text-xl text-primary-950">Holding evolution</h2>
       <div className="mt-3 w-full sm:w-1/2">
         <Suspense fallback={<div>Loading...</div>}>
           <AssetEvolution

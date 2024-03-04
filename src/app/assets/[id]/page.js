@@ -10,6 +10,7 @@ import PageTitle from "@/components/pages/PageTitle";
 import get from "@/services/coin/get";
 import Image from "next/image";
 import Link from "next/link";
+import AssetEvolutionGraph from "@/components/AssetEvolutionGraph";
 
 const BoxTitle = ({ children }) => (
   <div className="mb-4">
@@ -147,6 +148,13 @@ export default async function Asset({ params: { id } }) {
                 </EvolutionItem>
               </div>
             </div>
+          </div>
+          <div className="mt-4">
+            <AssetEvolutionGraph
+              assetId={id}
+              currentAmount={asset.amount}
+              assetName={asset.assetName}
+            />
           </div>
         </PageContent>
       </div>

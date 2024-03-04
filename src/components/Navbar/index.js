@@ -54,9 +54,6 @@ export default function NavBar() {
       <NavItem path="/home" active={currentPath === "/home"}>
         Home
       </NavItem>
-      <NavItem path="/other" active={currentPath === "/other"}>
-        other
-      </NavItem>
       <RightContainer>
         {!user ? (
           <NavItem path="/api/auth/login">Login</NavItem>

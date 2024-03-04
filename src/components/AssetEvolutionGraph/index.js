@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 const AssetEvolution = async ({ assetId, assetName, currentAmount }) => {
   const data = await getAssetArchiveByUserAssetId(assetId, 100, 1);
-  if (!data.lenght)
+  if (data.lenght === 0)
     return <div>There is no historical data to show an evolution graph</div>;
 
   const dataKeys = [assetName];

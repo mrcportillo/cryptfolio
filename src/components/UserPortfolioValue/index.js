@@ -36,7 +36,7 @@ export default async function UserPortfolioValue() {
   }, 0);
 
   return (
-    <div className="mt-8 w-max rounded-md bg-gradient-to-br from-amber-300 to-amber-700 px-8 py-6 shadow">
+    <div className="mt-8 w-full max-w-max rounded-md bg-gradient-to-br from-amber-300 to-amber-700 px-4 py-2 shadow md:px-8 md:py-6">
       <div className="mb-2 text-primary-900">Portfolio total worth</div>
       <div className="text-6xl text-primary-100">
         ${formatNumber(portfolioTotalValue)}

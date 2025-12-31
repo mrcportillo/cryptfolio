@@ -31,15 +31,16 @@ const AssetAttribute = ({ label, value }: AssetAttributeProps) => (
 
 type AssetPillProps = {
   asset: AssetWithPrice;
+  onEdit?: () => void;
 };
 
-export default function AssetPill({ asset }: AssetPillProps) {
+export default function AssetPill({ asset, onEdit }: AssetPillProps) {
   const router = useRouter();
   const totalValue = formatNumber(asset.amount * asset.price);
 
-  const onEditNavigate = (event: MouseEvent<HTMLButtonElement>) => {
+  const onEditClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    router.push(`/assets/${asset.id}/edit`);
+    onEdit?.();
   };
 
   return (
@@ -74,7 +75,8 @@ export default function AssetPill({ asset }: AssetPillProps) {
             variant="ghost"
             size="icon"
             className="h-9 w-9 text-primary-50 hover:bg-primary-900/20 hover:text-white"
-            onClick={onEditNavigate}
+            onClick={onEditClick}
+            disabled={!onEdit}
             aria-label="Edit asset"
             title="Edit asset"
           >

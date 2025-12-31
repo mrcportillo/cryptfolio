@@ -4,12 +4,10 @@ import { formatNumber } from "@/utils/numbers";
 import RemoveButton from "@/components/RemoveButton";
 import get from "@/services/coin/get";
 import Image from "next/image";
-import Link from "next/link";
 import AssetEvolutionGraph from "@/components/AssetEvolutionGraph";
 import type { CoinDetail } from "@/services/coin/types";
 import type { UserAsset } from "@prisma/client";
 import type { PropsWithChildren } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type EvolutionDotProps = {
@@ -51,11 +49,6 @@ export default async function Asset({ params: { id } }: AssetPageProps) {
           {asset.assetName || "Asset detail"}
         </h1>
         <div className="ml-auto sm:ml-8">
-          <Button asChild>
-            <Link href={`/assets/${id}/edit`}>Edit</Link>
-          </Button>
-        </div>
-        <div className="ml-4">
           <RemoveButton remove={removeAsset}>Remove</RemoveButton>
         </div>
       </div>

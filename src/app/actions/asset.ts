@@ -2,6 +2,7 @@
 import { getSession } from "@auth0/nextjs-auth0";
 import prisma from "../../services/prisma/client";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 function requireString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -83,7 +84,7 @@ export async function update(formData: FormData) {
     console.error(error);
     throw new Error("Error updating asset");
   }
-  redirect("/home");
+  revalidatePath("/home");
 }
 
 export async function remove(assetId: string) {

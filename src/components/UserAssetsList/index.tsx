@@ -1,9 +1,12 @@
-import prisma from "@/services/prisma/client";
 import { getSession } from "@auth0/nextjs-auth0";
-import AssetPill from "../AssetPill";
 import get from "@/services/coin/get";
+import list from "@/services/coin/list";
+import UserAssetsListClient from "@/components/UserAssetsList/UserAssetsListClient";
 import { getUserAssetsByUserId } from "@/utils/db-api";
+import { update } from "@/app/actions/asset";
 import type { AssetWithPrice } from "@/types/asset";
+import type { CoinOption } from "@/types/coin";
+import type { CoinListItem } from "@/services/coin/types";
 import type { UserAsset } from "@prisma/client";
 
 async function getUserAssets(): Promise<UserAsset[]> {
@@ -35,6 +38,14 @@ async function getAssetPrices(
   }));
 }
 
+async function getCoinOptions(): Promise<CoinOption[]> {
+  const coinList: CoinListItem[] = await list(50);
+  return coinList.map((coin: CoinListItem) => ({
+    value: coin.id,
+    label: coin.name,
+  }));
+}
+
 export default async function UserAssetsList() {
   const assets = await getUserAssets();
   const assetsWithPrice = await getAssetPrices(assets);
@@ -42,12 +53,13 @@ export default async function UserAssetsList() {
     (first, second) =>
       second.price * second.amount - first.price * first.amount,
   );
+  const coinOptions = assetsWithPrice.length ? await getCoinOptions() : [];
 
   return (
-    <div className="flex flex-wrap gap-6">
-      {sortedAssets.map((asset) => (
-        <AssetPill key={asset.id} asset={asset} />
-      ))}
-    </div>
+    <UserAssetsListClient
+      assets={sortedAssets}
+      coinOptions={coinOptions}
+      updateAction={update}
+    />
   );
 }

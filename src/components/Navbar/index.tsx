@@ -1,0 +1,78 @@
+"use client";
+import { useUser } from "@auth0/nextjs-auth0/client";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import type { PropsWithChildren } from "react";
+
+const NavContainer = ({ children }: PropsWithChildren) => (
+  <nav className="bg-primary-100 shadow-md">
+    <div className="flex py-2 pr-2 md:px-4">{children}</div>
+  </nav>
+);
+
+type NavItemProps = PropsWithChildren<{
+  path: string;
+  danger?: boolean;
+  active?: boolean;
+}>;
+
+const NavItem = ({ path, children, danger = false, active }: NavItemProps) => (
+  <a
+    href={path}
+    className={`px-3 py-4 text-sm font-medium  ${danger ? "text-rose-700 hover:text-rose-500" : active ? "text-slate-500" : "text-slate-900 hover:text-slate-500"} `}
+  >
+    {children}
+  </a>
+);
+
+const RightContainer = ({ children }: PropsWithChildren) => (
+  <div className="ml-auto flex">{children}</div>
+);
+
+type UserAvatarProps = {
+  src: string;
+  alt: string;
+};
+
+const UserAvatar = ({ src, alt }: UserAvatarProps) => (
+  <a href="/user" className="self-center">
+    <Image
+      src={src}
+      alt={alt}
+      width={40}
+      height={40}
+      className="h-10 rounded-full hover:cursor-pointer"
+    />
+  </a>
+);
+
+const AppImage = () => (
+  <Image
+    src="/images/logo.png"
+    alt="App Logo"
+    width={60}
+    height={60}
+    className="h-14"
+  />
+);
+
+export default function NavBar() {
+  const { user } = useUser();
+  const currentPath = usePathname();
+
+  return (
+    <NavContainer>
+      <AppImage />
+      <NavItem path="/home" active={currentPath === "/home"}>
+        Home
+      </NavItem>
+      <RightContainer>
+        {!user ? (
+          <NavItem path="/api/auth/login">Login</NavItem>
+        ) : (
+          <UserAvatar src={user.picture} alt={user.name} />
+        )}
+      </RightContainer>
+    </NavContainer>
+  );
+}

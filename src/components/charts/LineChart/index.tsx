@@ -17,18 +17,22 @@ type LineChartProps = {
   data?: ChartDataPoint[];
   xKey: string;
   dataKeys?: string[];
+  minHeight?: number | string;
+  showDots?: boolean;
 };
 
 export default function LineChart({
   data = [],
   xKey,
   dataKeys = [],
+  minHeight = 400,
+  showDots = true,
 }: LineChartProps) {
   return (
     <ResponsiveContainer
       width="100%"
       height="100%"
-      minHeight="400px"
+      minHeight={minHeight}
       minWidth="200px"
     >
       <RechartsLineChart
@@ -51,6 +55,8 @@ export default function LineChart({
             type="monotone"
             dataKey={dataKey}
             stroke="#8884d8"
+            dot={showDots}
+            activeDot={showDots}
           />
         ))}
       </RechartsLineChart>

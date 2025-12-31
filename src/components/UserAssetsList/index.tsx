@@ -38,10 +38,14 @@ async function getAssetPrices(
 export default async function UserAssetsList() {
   const assets = await getUserAssets();
   const assetsWithPrice = await getAssetPrices(assets);
+  const sortedAssets = [...assetsWithPrice].sort(
+    (first, second) =>
+      second.price * second.amount - first.price * first.amount,
+  );
 
   return (
-    <div className="flex flex-wrap gap-4">
-      {assetsWithPrice.map((asset) => (
+    <div className="flex flex-wrap gap-6">
+      {sortedAssets.map((asset) => (
         <AssetPill key={asset.id} asset={asset} />
       ))}
     </div>

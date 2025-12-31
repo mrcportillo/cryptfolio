@@ -43,14 +43,14 @@ export default async function UserPortfolioValue() {
   }, 0);
 
   return (
-    <Card className="mt-8 w-full max-w-max border-0 bg-gradient-to-br from-amber-300 to-amber-700 shadow">
+    <Card className="w-full border-0 bg-gradient-to-br from-primary-200 via-primary-400 to-primary-700 shadow-lg">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base text-primary-900">
+        <CardTitle className="text-base text-primary-50/90">
           Portfolio total worth
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-4xl text-primary-100 md:text-6xl">
+        <div className="text-5xl font-semibold text-white sm:text-6xl md:text-7xl">
           ${formatNumber(portfolioTotalValue)}
         </div>
       </CardContent>

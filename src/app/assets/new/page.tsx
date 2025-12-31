@@ -2,6 +2,7 @@ import { create } from "@/app/actions/asset";
 import Buttons from "@/components/forms/Buttons";
 import list from "@/services/coin/list";
 import type { CoinListItem } from "@/services/coin/types";
+import type { CoinOption } from "@/types/coin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-type CoinOption = {
-  value: string;
-  label: string;
-};
 
 async function getCoinOptions(): Promise<CoinOption[]> {
   const coinList: CoinListItem[] = await list(50);

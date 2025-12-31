@@ -1,25 +1,21 @@
 import Link from "next/link";
-import PageContainer from "../../components/pages/PageContainer";
-import PageHeaeder from "../../components/pages/PageHeader";
-import PageContent from "../../components/pages/PageContent";
-import Button from "../../components/Button";
-import PageTitle from "../../components/pages/PageTitle";
 import AssetsListSkeleton from "@/components/skeletons/AssetsListSkeleton";
+import { Button } from "@/components/ui/button";
 
 export default function LoadingHome() {
   return (
-    <PageContainer>
-      <PageHeaeder>
-        <PageTitle>Assets</PageTitle>
+    <div className="mx-2 my-4 flex flex-col sm:mx-4 md:mx-8 md:my-10 lg:mx-20">
+      <div className="mb-2 flex items-center">
+        <h1 className="text-3xl font-semibold text-primary-950">Assets</h1>
         <div className="ml-auto sm:ml-8">
-          <Link href="/assets/new">
-            <Button>New asset</Button>
-          </Link>
+          <Button asChild>
+            <Link href="/assets/new">New asset</Link>
+          </Button>
         </div>
-      </PageHeaeder>
-      <PageContent>
+      </div>
+      <div className="my-4">
         <AssetsListSkeleton />
-      </PageContent>
-    </PageContainer>
+      </div>
+    </div>
   );
 }

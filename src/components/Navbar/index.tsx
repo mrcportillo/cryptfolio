@@ -1,8 +1,12 @@
 "use client";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { PropsWithChildren } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const NavContainer = ({ children }: PropsWithChildren) => (
   <nav className="bg-primary-100 shadow-md">
@@ -17,12 +21,17 @@ type NavItemProps = PropsWithChildren<{
 }>;
 
 const NavItem = ({ path, children, danger = false, active }: NavItemProps) => (
-  <a
-    href={path}
-    className={`px-3 py-4 text-sm font-medium  ${danger ? "text-rose-700 hover:text-rose-500" : active ? "text-slate-500" : "text-slate-900 hover:text-slate-500"} `}
+  <Button
+    asChild
+    variant="ghost"
+    className={cn(
+      "h-auto px-3 py-4 text-sm font-medium",
+      danger && "text-destructive hover:text-destructive",
+      active ? "text-muted-foreground" : "text-slate-900 hover:text-slate-500",
+    )}
   >
-    {children}
-  </a>
+    <Link href={path}>{children}</Link>
+  </Button>
 );
 
 const RightContainer = ({ children }: PropsWithChildren) => (
@@ -35,15 +44,12 @@ type UserAvatarProps = {
 };
 
 const UserAvatar = ({ src, alt }: UserAvatarProps) => (
-  <a href="/user" className="self-center">
-    <Image
-      src={src}
-      alt={alt}
-      width={40}
-      height={40}
-      className="h-10 rounded-full hover:cursor-pointer"
-    />
-  </a>
+  <Link href="/user" className="self-center">
+    <Avatar>
+      <AvatarImage src={src} alt={alt} />
+      <AvatarFallback>{alt?.slice(0, 1) ?? "U"}</AvatarFallback>
+    </Avatar>
+  </Link>
 );
 
 const AppImage = () => (

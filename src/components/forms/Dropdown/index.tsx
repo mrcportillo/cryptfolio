@@ -1,3 +1,12 @@
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 type DropdownOption = {
   value: string;
   label: string;
@@ -19,22 +28,20 @@ export default function Dropdown({
   defaultValue,
 }: DropdownProps) {
   return (
-    <div className="mb-4 flex flex-col">
-      <label htmlFor={name} className="mb-2 text-sm">
-        {label}
-      </label>
-      <select
-        name={name}
-        className="rounded border border-gray-300 p-2"
-        defaultValue={defaultValue}
-        disabled={readOnly}
-      >
-        {options.map(({ value, label }) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
+    <div className="grid gap-2">
+      <Label htmlFor={name}>{label}</Label>
+      <Select name={name} defaultValue={defaultValue} disabled={readOnly}>
+        <SelectTrigger id={name}>
+          <SelectValue placeholder="Select an option" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map(({ value, label }) => (
+            <SelectItem key={value} value={value}>
+              {label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

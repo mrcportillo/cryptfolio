@@ -1,15 +1,19 @@
 import { update } from "@/app/actions/asset";
-import PageContainer from "@/components/pages/PageContainer";
 import Buttons from "@/components/forms/Buttons";
-import Dropdown from "@/components/forms/Dropdown";
-import Input from "@/components/forms/Input";
-import PageHeaeder from "@/components/pages/PageHeader";
-import PageContent from "@/components/pages/PageContent";
 import list from "@/services/coin/list";
-import PageTitle from "@/components/pages/PageTitle";
 import { getAssetById } from "@/utils/db-api";
 import type { CoinListItem } from "@/services/coin/types";
 import type { UserAsset } from "@prisma/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type CoinOption = {
   value: string;
@@ -42,39 +46,54 @@ export default async function Asset({ params: { id } }: AssetPageProps) {
   }
 
   return (
-    <PageContainer>
-      <div className="sm:w-full md:w-1/2">
-        <PageHeaeder>
-          <PageTitle>Edit asset</PageTitle>
-        </PageHeaeder>
-        <PageContent>
-          <form className="flex flex-col" action={update}>
+    <div className="mx-2 my-4 flex flex-col sm:mx-4 md:mx-8 md:my-10 lg:mx-20">
+      <Card className="w-full md:w-1/2">
+        <CardHeader>
+          <CardTitle>Edit asset</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form className="flex flex-col gap-4" action={update}>
             <input type="hidden" name="id" value={id} />
-            <Input
-              name="name"
-              type="text"
-              label="Alias"
-              required
-              value={assetRecord.assetName}
-            />
-            <Dropdown
-              readOnly
-              name="coin"
-              label="Coin"
-              defaultValue={assetRecord.assetId}
-              options={coinOptions}
-            />
-            <Input
-              name="amount"
-              type="d"
-              label="Amount"
-              required
-              value={assetRecord.amount}
-            />
+            <div className="grid gap-2">
+              <Label htmlFor="name">Alias</Label>
+              <Input
+                id="name"
+                name="name"
+                type="text"
+                required
+                defaultValue={assetRecord.assetName}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="coin">Coin</Label>
+              <Select name="coin" defaultValue={assetRecord.assetId} disabled>
+                <SelectTrigger id="coin">
+                  <SelectValue placeholder="Select a coin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {coinOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                name="amount"
+                type="d"
+                step="any"
+                required
+                defaultValue={assetRecord.amount}
+              />
+            </div>
             <Buttons cancelLabel={"Cancel"} confirmLabel={"Save"} />
           </form>
-        </PageContent>
-      </div>
-    </PageContainer>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

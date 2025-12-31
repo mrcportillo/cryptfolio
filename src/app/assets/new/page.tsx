@@ -1,13 +1,17 @@
 import { create } from "@/app/actions/asset";
-import PageContainer from "@/components/pages/PageContainer";
 import Buttons from "@/components/forms/Buttons";
-import Dropdown from "@/components/forms/Dropdown";
-import Input from "@/components/forms/Input";
 import list from "@/services/coin/list";
-import PageHeaeder from "@/components/pages/PageHeader";
-import PageContent from "@/components/pages/PageContent";
-import PageTitle from "@/components/pages/PageTitle";
 import type { CoinListItem } from "@/services/coin/types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type CoinOption = {
   value: string;
@@ -26,20 +30,40 @@ export default async function NewAsset() {
   const coinOptions = await getCoinOptions();
 
   return (
-    <PageContainer>
-      <div className="sm:w-full md:w-1/2">
-        <PageHeaeder>
-          <PageTitle>New Asset</PageTitle>
-        </PageHeaeder>
-        <PageContent>
-          <form className="flex flex-col" action={create}>
-            <Input name="name" type="text" label="Alias" required />
-            <Dropdown name="coin" label="Coin" options={coinOptions} />
-            <Input name="amount" type="d" label="Amount" required />
+    <div className="mx-2 my-4 flex flex-col sm:mx-4 md:mx-8 md:my-10 lg:mx-20">
+      <Card className="w-full md:w-1/2">
+        <CardHeader>
+          <CardTitle>New Asset</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form className="flex flex-col gap-4" action={create}>
+            <div className="grid gap-2">
+              <Label htmlFor="name">Alias</Label>
+              <Input id="name" name="name" type="text" required />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="coin">Coin</Label>
+              <Select name="coin" required>
+                <SelectTrigger id="coin">
+                  <SelectValue placeholder="Select a coin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {coinOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="amount">Amount</Label>
+              <Input id="amount" name="amount" type="d" step="any" required />
+            </div>
             <Buttons cancelLabel={"Cancel"} confirmLabel={"Save"} />
           </form>
-        </PageContent>
-      </div>
-    </PageContainer>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

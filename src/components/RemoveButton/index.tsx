@@ -1,25 +1,47 @@
 "use client";
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import type { ReactNode } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
-type RemoveButtonProps = Omit<ComponentPropsWithoutRef<"button">, "onClick"> & {
+type RemoveButtonProps = {
   children: ReactNode;
   remove: () => void;
 };
 
-export default function RemoveButton({
-  children,
-  remove,
-  ...rest
-}: RemoveButtonProps) {
+export default function RemoveButton({ children, remove }: RemoveButtonProps) {
   return (
-    <button
-      className="h-10 rounded-md bg-red-700 px-3 py-2 text-white hover:bg-red-800 active:bg-red-900 disabled:bg-red-200 disabled:text-red-700"
-      {...rest}
-      onClick={() =>
-        confirm("Are you sure you want to remove this?") ? remove() : null
-      }
-    >
-      {children}
-    </button>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive">{children}</Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove this asset?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. The asset will be removed from your
+            portfolio.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={remove}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

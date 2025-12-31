@@ -1,17 +1,19 @@
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AssetPillSkeleton() {
   return (
-    <div className="flex h-50 w-70 animate-pulse cursor-pointer  rounded-md bg-primary-400 bg-gradient-to-br p-4 shadow">
-      <div className="flex justify-between">
-        <div className="t mb-4 h-6 w-28 rounded bg-primary-500" />
-      </div>
-      <div className="ml-auto mt-10 ">
-        <div className="t mb-2 h-4 w-28 rounded bg-primary-500" />
-        <div className="t mb-2 h-4 w-16 rounded bg-primary-500" />
-        <div className="t mb-2 h-4 w-20 rounded bg-primary-500" />
-        <div className="t mb-2 h-4 w-10 rounded bg-primary-500" />
-        <div className="t mb-2 h-4 w-24 rounded bg-primary-500" />
-      </div>
-    </div>
+    <Card className="w-72 border-0 bg-gradient-to-br from-primary-300 to-primary-700 shadow">
+      <CardHeader className="pb-3">
+        <Skeleton className="h-6 w-28 bg-primary-500/60" />
+      </CardHeader>
+      <CardContent className="space-y-2 pt-0">
+        <Skeleton className="h-4 w-28 bg-primary-500/60" />
+        <Skeleton className="h-4 w-16 bg-primary-500/60" />
+        <Skeleton className="h-4 w-20 bg-primary-500/60" />
+        <Skeleton className="h-4 w-10 bg-primary-500/60" />
+        <Skeleton className="h-4 w-24 bg-primary-500/60" />
+      </CardContent>
+    </Card>
   );
 }

@@ -4,6 +4,7 @@ import { formatNumber } from "@/utils/numbers";
 import { getSession } from "@auth0/nextjs-auth0";
 import type { AssetWithPrice } from "@/types/asset";
 import type { UserAsset } from "@prisma/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 async function getUserAssets(): Promise<UserAsset[]> {
   const session = await getSession();
@@ -42,11 +43,17 @@ export default async function UserPortfolioValue() {
   }, 0);
 
   return (
-    <div className="mt-8 w-full max-w-max rounded-md bg-gradient-to-br from-amber-300 to-amber-700 px-4 py-2 shadow md:px-8 md:py-6">
-      <div className="mb-2 text-primary-900">Portfolio total worth</div>
-      <div className="text-6xl text-primary-100">
-        ${formatNumber(portfolioTotalValue)}
-      </div>
-    </div>
+    <Card className="mt-8 w-full max-w-max border-0 bg-gradient-to-br from-amber-300 to-amber-700 shadow">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base text-primary-900">
+          Portfolio total worth
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-4xl text-primary-100 md:text-6xl">
+          ${formatNumber(portfolioTotalValue)}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

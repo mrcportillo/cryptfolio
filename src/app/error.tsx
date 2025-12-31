@@ -1,7 +1,8 @@
 "use client"; // Error components must be Client Components
 
 import { useEffect } from "react";
-import PageContainer from "../components/pages/PageContainer";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type ErrorProps = {
   error: Error & { digest?: string };
@@ -14,14 +15,18 @@ export default function Error({ error, reset }: ErrorProps) {
   }, [error]);
 
   return (
-    <PageContainer>
-      <h2>Ups! {error?.message}</h2>
-      <button
-        className="mt-6 rounded-sm bg-slate-300 px-2 py-1"
-        onClick={() => reset()}
-      >
-        Try again
-      </button>
-    </PageContainer>
+    <div className="mx-2 my-4 flex flex-col sm:mx-4 md:mx-8 md:my-10 lg:mx-20">
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <CardTitle>Something went wrong</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Ups! {error?.message}</p>
+          <Button className="mt-6" onClick={() => reset()}>
+            Try again
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

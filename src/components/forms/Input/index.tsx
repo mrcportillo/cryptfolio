@@ -1,3 +1,6 @@
+import { Input as BaseInput } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 type InputProps = {
   name: string;
   type: string;
@@ -14,17 +17,15 @@ export default function Input({
   required,
 }: InputProps) {
   return (
-    <div className="mb-4 flex flex-col">
-      <label htmlFor={name} className="mb-2 text-sm">
-        {label}
-      </label>
-      <input
+    <div className="grid gap-2">
+      <Label htmlFor={name}>{label}</Label>
+      <BaseInput
+        id={name}
         type={type}
         step="any"
         name={name}
-        className="rounded border border-gray-300 p-2"
         required={required}
-        placeholder={value != null ? String(value) : undefined}
+        defaultValue={value != null ? String(value) : undefined}
       />
     </div>
   );

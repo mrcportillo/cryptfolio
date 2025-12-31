@@ -1,12 +1,7 @@
 import { remove } from "@/app/actions/asset";
 import { getAssetById } from "@/utils/db-api";
 import { formatNumber } from "@/utils/numbers";
-import Button from "@/components/Button";
 import RemoveButton from "@/components/RemoveButton";
-import PageContainer from "@/components/pages/PageContainer";
-import PageContent from "@/components/pages/PageContent";
-import PageHeaeder from "@/components/pages/PageHeader";
-import PageTitle from "@/components/pages/PageTitle";
 import get from "@/services/coin/get";
 import Image from "next/image";
 import Link from "next/link";
@@ -14,12 +9,8 @@ import AssetEvolutionGraph from "@/components/AssetEvolutionGraph";
 import type { CoinDetail } from "@/services/coin/types";
 import type { UserAsset } from "@prisma/client";
 import type { PropsWithChildren } from "react";
-
-const BoxTitle = ({ children }: PropsWithChildren) => (
-  <div className="mb-4">
-    <span className="text-xl font-bold">{children}</span>
-  </div>
-);
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type EvolutionDotProps = {
   evolutionValue?: number;
@@ -54,46 +45,48 @@ export default async function Asset({ params: { id } }: AssetPageProps) {
   };
 
   return (
-    <PageContainer>
-      <div className="w-full">
-        <PageHeaeder>
-          <PageTitle>{asset.assetName || "Asset detail"}</PageTitle>
-          <div className="ml-auto sm:ml-8">
-            <Link href={`/assets/${id}/edit`}>
-              <Button>Edit</Button>
-            </Link>
-          </div>
-          <div className="ml-4">
-            <RemoveButton remove={removeAsset}>Remove</RemoveButton>
-          </div>
-        </PageHeaeder>
-        <PageContent>
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <div className="w-full md:w-1/2">
-              <div className="flex rounded border p-4">
-                <div className="mr-8 ">
-                  <div>
-                    <Image
-                      src={assetStatus.image.large}
-                      alt={assetStatus.id}
-                      width={130}
-                      height={130}
-                    />
-                  </div>
+    <div className="mx-2 my-4 flex flex-col sm:mx-4 md:mx-8 md:my-10 lg:mx-20">
+      <div className="mb-2 flex items-center">
+        <h1 className="text-3xl font-semibold text-primary-950">
+          {asset.assetName || "Asset detail"}
+        </h1>
+        <div className="ml-auto sm:ml-8">
+          <Button asChild>
+            <Link href={`/assets/${id}/edit`}>Edit</Link>
+          </Button>
+        </div>
+        <div className="ml-4">
+          <RemoveButton remove={removeAsset}>Remove</RemoveButton>
+        </div>
+      </div>
+      <div className="my-4">
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <Card className="w-full md:w-1/2">
+            <CardHeader className="pb-3">
+              <CardTitle>Current</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex">
+                <div className="mr-8">
+                  <Image
+                    src={assetStatus.image.large}
+                    alt={assetStatus.id}
+                    width={130}
+                    height={130}
+                  />
                 </div>
-                <div>
-                  <BoxTitle>Current</BoxTitle>
+                <div className="space-y-1 text-sm text-muted-foreground">
                   <div>
                     <span>Coin: </span>
-                    <span>{assetStatus.name}</span>
+                    <span className="text-foreground">{assetStatus.name}</span>
                   </div>
                   <div>
                     <span>Holding: </span>
-                    <span>{asset.amount}</span>
+                    <span className="text-foreground">{asset.amount}</span>
                   </div>
                   <div>
                     <span>Coin value: </span>
-                    <span>
+                    <span className="text-foreground">
                       $
                       {formatNumber(
                         assetStatus?.market_data?.current_price?.usd,
@@ -102,7 +95,7 @@ export default async function Asset({ params: { id } }: AssetPageProps) {
                   </div>
                   <div>
                     <span>Holding value: </span>
-                    <span>
+                    <span className="text-foreground">
                       $
                       {formatNumber(
                         asset.amount *
@@ -112,68 +105,72 @@ export default async function Asset({ params: { id } }: AssetPageProps) {
                   </div>
                   <div>
                     <span>Last updated: </span>
-                    <span>{new Date(asset.date).toDateString()}</span>
+                    <span className="text-foreground">
+                      {new Date(asset.date).toDateString()}
+                    </span>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="w-full sm:w-1/4">
-              <div className="rounded border p-4">
-                <BoxTitle>Coin evolution</BoxTitle>
-                <EvolutionItem>
-                  <EvolutionDot
-                    evolutionValue={
-                      assetStatus?.market_data?.price_change_percentage_24h
-                    }
-                  />
-                  <span>24 hs:</span>
-                  <span>
-                    {formatNumber(
-                      assetStatus?.market_data?.price_change_percentage_24h,
-                    )}
-                    %
-                  </span>
-                </EvolutionItem>
-                <EvolutionItem>
-                  <EvolutionDot
-                    evolutionValue={
-                      assetStatus?.market_data?.price_change_percentage_7d
-                    }
-                  />
-                  <span>7 days:</span>
-                  <span>
-                    {formatNumber(
-                      assetStatus?.market_data?.price_change_percentage_7d,
-                    )}
-                    %
-                  </span>
-                </EvolutionItem>
-                <EvolutionItem>
-                  <EvolutionDot
-                    evolutionValue={
-                      assetStatus?.market_data?.price_change_percentage_30d
-                    }
-                  />
-                  <span>30 days:</span>
-                  <span>
-                    {formatNumber(
-                      assetStatus?.market_data?.price_change_percentage_30d,
-                    )}
-                    %
-                  </span>
-                </EvolutionItem>
-              </div>
-            </div>
-          </div>
-          <div className="mt-4">
-            <AssetEvolutionGraph
-              assetId={id}
-              currentAmount={asset.amount}
-              assetName={asset.assetName}
-            />
-          </div>
-        </PageContent>
+            </CardContent>
+          </Card>
+          <Card className="w-full sm:w-1/4">
+            <CardHeader className="pb-3">
+              <CardTitle>Coin evolution</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <EvolutionItem>
+                <EvolutionDot
+                  evolutionValue={
+                    assetStatus?.market_data?.price_change_percentage_24h
+                  }
+                />
+                <span>24 hs:</span>
+                <span>
+                  {formatNumber(
+                    assetStatus?.market_data?.price_change_percentage_24h,
+                  )}
+                  %
+                </span>
+              </EvolutionItem>
+              <EvolutionItem>
+                <EvolutionDot
+                  evolutionValue={
+                    assetStatus?.market_data?.price_change_percentage_7d
+                  }
+                />
+                <span>7 days:</span>
+                <span>
+                  {formatNumber(
+                    assetStatus?.market_data?.price_change_percentage_7d,
+                  )}
+                  %
+                </span>
+              </EvolutionItem>
+              <EvolutionItem>
+                <EvolutionDot
+                  evolutionValue={
+                    assetStatus?.market_data?.price_change_percentage_30d
+                  }
+                />
+                <span>30 days:</span>
+                <span>
+                  {formatNumber(
+                    assetStatus?.market_data?.price_change_percentage_30d,
+                  )}
+                  %
+                </span>
+              </EvolutionItem>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="mt-4">
+          <AssetEvolutionGraph
+            assetId={id}
+            currentAmount={asset.amount}
+            assetName={asset.assetName}
+          />
+        </div>
       </div>
-    </PageContainer>
+    </div>
   );
 }

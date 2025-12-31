@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import AssetPill from "@/components/AssetPill";
 import AssetEditPanel from "@/components/AssetEditPanel";
 import type { AssetWithPrice } from "@/types/asset";
@@ -10,12 +10,14 @@ type UserAssetsListClientProps = {
   assets: AssetWithPrice[];
   coinOptions: CoinOption[];
   updateAction: (formData: FormData) => void | Promise<void>;
+  selectedCoinFilter?: string;
 };
 
 export default function UserAssetsListClient({
   assets,
   coinOptions,
   updateAction,
+  selectedCoinFilter = "all",
 }: UserAssetsListClientProps) {
   const [selectedAsset, setSelectedAsset] = useState<AssetWithPrice | null>(
     null,
@@ -34,10 +36,17 @@ export default function UserAssetsListClient({
     }
   };
 
+  const filteredAssets = useMemo(() => {
+    if (selectedCoinFilter === "all") {
+      return assets;
+    }
+    return assets.filter((asset) => asset.assetId === selectedCoinFilter);
+  }, [assets, selectedCoinFilter]);
+
   return (
     <>
       <div className="flex flex-wrap gap-6">
-        {assets.map((asset) => (
+        {filteredAssets.map((asset) => (
           <AssetPill
             key={asset.id}
             asset={asset}

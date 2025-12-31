@@ -38,28 +38,60 @@ async function getAssetPrices(
   }));
 }
 
-async function getCoinOptions(): Promise<CoinOption[]> {
-  const coinList: CoinListItem[] = await list(50);
-  return coinList.map((coin: CoinListItem) => ({
-    value: coin.id,
-    label: coin.name,
-  }));
+async function getUniqueCoinOptions(
+  assets: AssetWithPrice[],
+): Promise<CoinOption[]> {
+  // Extract unique coin IDs from assets
+  const uniqueCoinIds = Array.from(
+    new Set(assets.map((asset) => asset.assetId)),
+  );
+
+  // Fetch coin details for unique coin IDs
+  const coinOptions = await Promise.all(
+    uniqueCoinIds.map(async (coinId) => {
+      try {
+        const coin = await get(coinId);
+        return {
+          value: coin.id,
+          label: coin.name,
+        };
+      } catch (error) {
+        // Fallback to coin ID if fetch fails
+        return {
+          value: coinId,
+          label: coinId,
+        };
+      }
+    }),
+  );
+
+  // Sort by label for better UX
+  return coinOptions.sort((a, b) => a.label.localeCompare(b.label));
 }
 
-export default async function UserAssetsList() {
+type UserAssetsListProps = {
+  selectedCoinFilter?: string;
+};
+
+export default async function UserAssetsList({
+  selectedCoinFilter = "all",
+}: UserAssetsListProps) {
   const assets = await getUserAssets();
   const assetsWithPrice = await getAssetPrices(assets);
   const sortedAssets = [...assetsWithPrice].sort(
     (first, second) =>
       second.price * second.amount - first.price * first.amount,
   );
-  const coinOptions = assetsWithPrice.length ? await getCoinOptions() : [];
+  const coinOptions = assetsWithPrice.length
+    ? await getUniqueCoinOptions(assetsWithPrice)
+    : [];
 
   return (
     <UserAssetsListClient
       assets={sortedAssets}
       coinOptions={coinOptions}
       updateAction={update}
+      selectedCoinFilter={selectedCoinFilter}
     />
   );
 }

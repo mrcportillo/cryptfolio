@@ -11,7 +11,7 @@ import {
   YAxis,
 } from "recharts";
 
-type ChartDataPoint = Record<string, number | string | Date>;
+type ChartDataPoint = Record<string, number | string | Date | null>;
 
 type LineChartProps = {
   data?: ChartDataPoint[];
@@ -19,6 +19,7 @@ type LineChartProps = {
   dataKeys?: string[];
   minHeight?: number | string;
   showDots?: boolean;
+  valueFormatter?: (value: number) => string;
 };
 
 export default function LineChart({
@@ -27,7 +28,15 @@ export default function LineChart({
   dataKeys = [],
   minHeight = 400,
   showDots = true,
+  valueFormatter,
 }: LineChartProps) {
+  const formatValue = (value: number | string | null) => {
+    if (typeof value === "number" && valueFormatter) {
+      return valueFormatter(value);
+    }
+    return value ?? "";
+  };
+
   return (
     <ResponsiveContainer
       width="100%"
@@ -46,8 +55,17 @@ export default function LineChart({
       >
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey={xKey} />
-        <YAxis />
-        <Tooltip />
+        <YAxis
+          tickFormatter={
+            valueFormatter
+              ? (value) =>
+                  typeof value === "number"
+                    ? valueFormatter(value)
+                    : String(value)
+              : undefined
+          }
+        />
+        <Tooltip formatter={valueFormatter ? formatValue : undefined} />
         <Legend />
         {dataKeys.map((dataKey) => (
           <Line

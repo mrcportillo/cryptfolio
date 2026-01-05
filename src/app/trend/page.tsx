@@ -17,7 +17,7 @@ const CHART_DAYS = 1;
 const CHART_HOURS = 24;
 const HOUR_MS = 60 * 60 * 1000;
 
-type TrendChartPoint = Record<string, number | string>;
+type TrendChartPoint = Record<string, number | string | null>;
 
 type TrendCardData = {
   coin: CoinMarketItem;
@@ -36,6 +36,11 @@ const formatMarketCap = (value: number) =>
     currency: "USD",
     notation: "compact",
     maximumFractionDigits: 2,
+  }).format(value);
+
+const formatPrice = (value: number) =>
+  new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 8,
   }).format(value);
 
 const getChange = (coin: CoinMarketItem) =>
@@ -79,7 +84,7 @@ const buildChartData = (
 
     return {
       hour: label,
-      [dataKey]: lastPrice !== null ? Number(lastPrice.toFixed(2)) : null,
+      [dataKey]: lastPrice,
     };
   });
 
@@ -182,6 +187,7 @@ export default async function TrendPage() {
                         dataKeys={[dataKey]}
                         minHeight={240}
                         showDots={false}
+                        valueFormatter={formatPrice}
                       />
                     ) : (
                       <div className="text-sm text-muted-foreground">

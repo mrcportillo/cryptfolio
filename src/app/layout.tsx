@@ -1,12 +1,9 @@
-import { UserProvider } from "@auth0/nextjs-auth0/client";
-import { Inter } from "next/font/google";
+import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import "./globals.css";
 import NavBar from "../components/Navbar";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Cryptfolio app",
@@ -19,13 +16,13 @@ type RootLayoutProps = {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <UserProvider>
-        <body className={`${inter.className} min-h-screen bg-background text-foreground`}>
+      <Auth0Provider>
+        <body className="min-h-screen bg-background font-sans text-foreground">
           <SpeedInsights />
           <NavBar />
-          {children}
+          <main>{children}</main>
         </body>
-      </UserProvider>
+      </Auth0Provider>
     </html>
   );
 }

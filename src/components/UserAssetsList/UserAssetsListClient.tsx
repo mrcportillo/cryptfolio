@@ -4,18 +4,19 @@ import { useState, useMemo } from "react";
 import AssetPill from "@/components/AssetPill";
 import AssetEditPanel from "@/components/AssetEditPanel";
 import type { AssetWithPrice } from "@/types/asset";
-import type { CoinOption } from "@/types/coin";
+import type { AssetActionState } from "@/types/action";
 
 type UserAssetsListClientProps = {
   assets: AssetWithPrice[];
-  coinOptions: CoinOption[];
-  updateAction: (formData: FormData) => void | Promise<void>;
+  updateAction: (
+    previousState: AssetActionState,
+    formData: FormData,
+  ) => Promise<AssetActionState>;
   selectedCoinFilter?: string;
 };
 
 export default function UserAssetsListClient({
   assets,
-  coinOptions,
   updateAction,
   selectedCoinFilter = "all",
 }: UserAssetsListClientProps) {
@@ -46,13 +47,21 @@ export default function UserAssetsListClient({
   return (
     <>
       <div className="flex flex-wrap gap-6">
-        {filteredAssets.map((asset) => (
-          <AssetPill
-            key={asset.id}
-            asset={asset}
-            onEdit={() => handleEdit(asset)}
-          />
-        ))}
+        {filteredAssets.length > 0 ? (
+          filteredAssets.map((asset) => (
+            <AssetPill
+              key={asset.id}
+              asset={asset}
+              onEdit={() => handleEdit(asset)}
+            />
+          ))
+        ) : (
+          <div className="w-full rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+            {selectedCoinFilter === "all"
+              ? "No assets yet. Add your first asset to start tracking your portfolio."
+              : "No assets match this coin filter."}
+          </div>
+        )}
       </div>
       {selectedAsset ? (
         <AssetEditPanel
@@ -61,8 +70,8 @@ export default function UserAssetsListClient({
           assetId={selectedAsset.id}
           assetName={selectedAsset.assetName}
           coinId={selectedAsset.assetId}
+          coinName={selectedAsset.coinName}
           amount={selectedAsset.amount}
-          coinOptions={coinOptions}
           formAction={updateAction}
         />
       ) : null}

@@ -27,14 +27,14 @@ export default function AssetsHeader({ coinOptions }: AssetsHeaderProps) {
   };
 
   return (
-    <div className="mb-2 flex items-center gap-4">
+    <div className="mb-2 flex flex-wrap items-center gap-4">
       <h1 className="text-3xl font-semibold text-primary-950">Assets</h1>
       <CoinFilter
         coinOptions={coinOptions}
         onFilterChange={handleFilterChange}
         selectedCoinFilter={currentFilter}
       />
-      <div className="flex-1" />
+      <div className="flex-1 basis-full sm:basis-0" />
       <div>
         <Button asChild>
           <Link href="/assets/new" className="flex items-center gap-2">
@@ -46,4 +46,3 @@ export default function AssetsHeader({ coinOptions }: AssetsHeaderProps) {
     </div>
   );
 }
-

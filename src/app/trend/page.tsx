@@ -1,15 +1,16 @@
-import LineChart from "@/components/charts/LineChart";
+import LazyLineChart from "@/components/charts/LineChart/LazyLineChart";
 import PageContainer from "@/components/pages/PageContainer";
 import PageContent from "@/components/pages/PageContent";
 import PageHeader from "@/components/pages/PageHeader";
 import PageTitle from "@/components/pages/PageTitle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { logServerError } from "@/lib/logger";
 import listMarket from "@/services/coin/listMarket";
 import marketChart from "@/services/coin/marketChart";
 import type { CoinMarketItem } from "@/services/coin/types";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 const MARKET_CAP_COUNT = 20;
 const TOP_MOVERS_COUNT = 5;
@@ -38,10 +39,9 @@ const formatMarketCap = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const formatPrice = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 8,
-  }).format(value);
+const PRICE_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
+  maximumFractionDigits: 8,
+};
 
 const getChange = (coin: CoinMarketItem) =>
   coin.price_change_percentage_24h ?? 0;
@@ -98,7 +98,7 @@ async function getTopMovers(): Promise<CoinMarketItem[]> {
       .sort((a, b) => Math.abs(getChange(b)) - Math.abs(getChange(a)))
       .slice(0, TOP_MOVERS_COUNT);
   } catch (error) {
-    console.error("Error fetching market movers:", error);
+    logServerError("trend.market-movers", error);
     return [];
   }
 }
@@ -121,7 +121,7 @@ async function getTrendCards(): Promise<TrendCardData[]> {
         );
         return { coin, dataKey, chartData };
       } catch (error) {
-        console.error(`Error fetching chart data for ${coin.id}:`, error);
+        logServerError("trend.chart", error, { coinId: coin.id });
         return { coin, dataKey: coin.name, chartData: [] };
       }
     }),
@@ -181,13 +181,14 @@ export default async function TrendPage() {
                   </CardHeader>
                   <CardContent>
                     {chartData.length ? (
-                      <LineChart
+                      <LazyLineChart
                         data={chartData}
                         xKey="hour"
                         dataKeys={[dataKey]}
                         minHeight={240}
                         showDots={false}
-                        valueFormatter={formatPrice}
+                        valueFormatOptions={PRICE_FORMAT_OPTIONS}
+                        ariaLabel={`${coin.name} 24-hour price chart`}
                       />
                     ) : (
                       <div className="text-sm text-muted-foreground">

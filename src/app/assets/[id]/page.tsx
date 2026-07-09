@@ -1,12 +1,17 @@
 import { remove } from "@/app/actions/asset";
+import { requireCurrentUser } from "@/lib/auth";
+import {
+  formatCurrency,
+  formatNumber,
+  formatPercentage,
+} from "@/utils/numbers";
 import { getAssetById } from "@/utils/db-api";
-import { formatNumber } from "@/utils/numbers";
 import RemoveButton from "@/components/RemoveButton";
 import get from "@/services/coin/get";
 import Image from "next/image";
+import { notFound } from "next/navigation";
 import AssetEvolutionGraph from "@/components/AssetEvolutionGraph";
 import type { CoinDetail } from "@/services/coin/types";
-import type { UserAsset } from "@prisma/client";
 import type { PropsWithChildren } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -15,8 +20,15 @@ type EvolutionDotProps = {
 };
 
 const EvolutionDot = ({ evolutionValue = 0 }: EvolutionDotProps) => (
-  <div
-    className={`h-2 w-2 self-center rounded-full ${evolutionValue > 0 ? "bg-green-600" : "bg-red-600"}`}
+  <span
+    className={`h-2 w-2 self-center rounded-full ${
+      evolutionValue > 0
+        ? "bg-green-600"
+        : evolutionValue < 0
+          ? "bg-red-600"
+          : "bg-muted-foreground"
+    }`}
+    aria-hidden="true"
   />
 );
 
@@ -24,19 +36,35 @@ const EvolutionItem = ({ children }: PropsWithChildren) => (
   <div className="flex space-x-2 align-middle">{children}</div>
 );
 
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+  }).format(date);
+}
+
 type AssetPageProps = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-export default async function Asset({ params: { id } }: AssetPageProps) {
-  const asset = (await getAssetById(id)) as UserAsset | null;
-  if (!asset) {
-    throw new Error("Asset not found");
-  }
-  const assetStatus: CoinDetail = await get(asset.assetId);
+export default async function Asset({ params }: AssetPageProps) {
+  const { id } = await params;
+  const user = await requireCurrentUser();
+  const asset = await getAssetById(id, user.id);
 
+  if (!asset) {
+    notFound();
+  }
+
+  let assetStatus: CoinDetail | null = null;
+  try {
+    assetStatus = await get(asset.assetId);
+  } catch {
+    assetStatus = null;
+  }
+
+  const currentPrice = assetStatus?.market_data?.current_price?.usd;
   const removeAsset = async () => {
     "use server";
     await remove(id);
@@ -44,11 +72,11 @@ export default async function Asset({ params: { id } }: AssetPageProps) {
 
   return (
     <div className="mx-2 my-4 flex flex-col sm:mx-4 md:mx-8 md:my-10 lg:mx-20">
-      <div className="mb-2 flex items-center">
+      <div className="mb-2 flex flex-wrap items-center gap-3">
         <h1 className="text-3xl font-semibold text-primary-950">
           {asset.assetName || "Asset detail"}
         </h1>
-        <div className="ml-auto sm:ml-8">
+        <div className="ml-auto">
           <RemoveButton remove={removeAsset}>Remove</RemoveButton>
         </div>
       </div>
@@ -59,51 +87,61 @@ export default async function Asset({ params: { id } }: AssetPageProps) {
               <CardTitle>Current</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex">
-                <div className="mr-8">
+              <div className="flex gap-6">
+                {assetStatus?.image.large ? (
                   <Image
                     src={assetStatus.image.large}
-                    alt={assetStatus.id}
+                    alt={`${assetStatus.name} logo`}
                     width={130}
                     height={130}
                   />
-                </div>
+                ) : (
+                  <div className="flex h-[130px] w-[130px] items-center justify-center rounded-full bg-muted text-center text-sm text-muted-foreground">
+                    No image
+                  </div>
+                )}
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <div>
                     <span>Coin: </span>
-                    <span className="text-foreground">{assetStatus.name}</span>
+                    <span className="text-foreground">
+                      {assetStatus?.name ?? asset.assetId}
+                    </span>
                   </div>
                   <div>
                     <span>Holding: </span>
-                    <span className="text-foreground">{asset.amount}</span>
+                    <span className="text-foreground">
+                      {formatNumber(asset.amount)}
+                    </span>
                   </div>
                   <div>
-                    <span>Coin value: </span>
+                    <span>Coin price: </span>
                     <span className="text-foreground">
-                      $
-                      {formatNumber(
-                        assetStatus?.market_data?.current_price?.usd,
-                      )}
+                      {currentPrice == null
+                        ? "Unavailable"
+                        : formatCurrency(currentPrice)}
                     </span>
                   </div>
                   <div>
                     <span>Holding value: </span>
                     <span className="text-foreground">
-                      $
-                      {formatNumber(
-                        asset.amount *
-                          assetStatus?.market_data?.current_price?.usd,
-                      )}
+                      {currentPrice == null
+                        ? "Unavailable"
+                        : formatCurrency(asset.amount * currentPrice)}
                     </span>
                   </div>
                   <div>
-                    <span>Last updated: </span>
+                    <span>Holding updated: </span>
                     <span className="text-foreground">
-                      {new Date(asset.date).toDateString()}
+                      {formatDate(new Date(asset.date))}
                     </span>
                   </div>
                 </div>
               </div>
+              {!assetStatus ? (
+                <p className="mt-4 text-sm text-muted-foreground" role="status">
+                  Live market data is temporarily unavailable.
+                </p>
+              ) : null}
             </CardContent>
           </Card>
           <Card className="w-full sm:w-1/4">
@@ -111,48 +149,26 @@ export default async function Asset({ params: { id } }: AssetPageProps) {
               <CardTitle>Coin evolution</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <EvolutionItem>
-                <EvolutionDot
-                  evolutionValue={
-                    assetStatus?.market_data?.price_change_percentage_24h
-                  }
-                />
-                <span>24 hs:</span>
-                <span>
-                  {formatNumber(
-                    assetStatus?.market_data?.price_change_percentage_24h,
-                  )}
-                  %
-                </span>
-              </EvolutionItem>
-              <EvolutionItem>
-                <EvolutionDot
-                  evolutionValue={
-                    assetStatus?.market_data?.price_change_percentage_7d
-                  }
-                />
-                <span>7 days:</span>
-                <span>
-                  {formatNumber(
-                    assetStatus?.market_data?.price_change_percentage_7d,
-                  )}
-                  %
-                </span>
-              </EvolutionItem>
-              <EvolutionItem>
-                <EvolutionDot
-                  evolutionValue={
-                    assetStatus?.market_data?.price_change_percentage_30d
-                  }
-                />
-                <span>30 days:</span>
-                <span>
-                  {formatNumber(
-                    assetStatus?.market_data?.price_change_percentage_30d,
-                  )}
-                  %
-                </span>
-              </EvolutionItem>
+              {[
+                [
+                  "24 hours",
+                  assetStatus?.market_data?.price_change_percentage_24h,
+                ],
+                [
+                  "7 days",
+                  assetStatus?.market_data?.price_change_percentage_7d,
+                ],
+                [
+                  "30 days",
+                  assetStatus?.market_data?.price_change_percentage_30d,
+                ],
+              ].map(([label, value]) => (
+                <EvolutionItem key={label as string}>
+                  <EvolutionDot evolutionValue={value as number | undefined} />
+                  <span>{label}:</span>
+                  <span>{formatPercentage(value as number | undefined)}</span>
+                </EvolutionItem>
+              ))}
             </CardContent>
           </Card>
         </div>

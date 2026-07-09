@@ -1,11 +1,11 @@
-import { getSession } from "@auth0/nextjs-auth0";
+import { getCurrentUser } from "@/lib/auth";
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function Profile() {
-  const session = await getSession();
-  const user = session?.user;
+  const user = await getCurrentUser();
 
   return (
     user && (
@@ -16,17 +16,23 @@ export default async function Profile() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
-              <Image
-                src={user.picture}
-                alt={user.name}
-                width={100}
-                height={100}
-                className="h-20 w-20 rounded-full"
-              />
+              {user.picture ? (
+                <Image
+                  src={user.picture}
+                  alt={user.name ?? "User profile"}
+                  width={100}
+                  height={100}
+                  className="h-20 w-20 rounded-full"
+                />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary-100 text-2xl font-semibold text-primary-950">
+                  {user.name?.slice(0, 1) ?? "U"}
+                </div>
+              )}
               <div>
                 <h2 className="text-lg font-semibold">{user.name}</h2>
                 <Button asChild variant="destructive" className="mt-2">
-                  <a href="/api/auth/logout">Logout</a>
+                  <Link href="/api/auth/logout">Logout</Link>
                 </Button>
               </div>
             </div>

@@ -8,6 +8,7 @@ type ButtonsProps = {
   confirmLabel: string;
   cancelHref?: string;
   onCancel?: () => void;
+  disabled?: boolean;
 };
 
 export default function Buttons({
@@ -15,6 +16,7 @@ export default function Buttons({
   confirmLabel,
   cancelHref = "/",
   onCancel,
+  disabled = false,
 }: ButtonsProps) {
   const { pending } = useFormStatus();
 
@@ -30,8 +32,12 @@ export default function Buttons({
         </Button>
       )}
       <div className="ml-2">
-        <Button type="submit" disabled={pending}>
-          {confirmLabel}
+        <Button
+          type="submit"
+          disabled={pending || disabled}
+          aria-busy={pending}
+        >
+          {pending ? `${confirmLabel}...` : confirmLabel}
         </Button>
       </div>
     </div>

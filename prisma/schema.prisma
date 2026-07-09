@@ -17,19 +17,24 @@ model User {
 
 model UserAsset {
     id String @default(cuid()) @id
-    user User @relation(fields: [userId], references: [id])
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
     userId String
     assetId String
     assetName String
     amount Float
     date DateTime @default(now())
     assetArchive AssetArchive[]
+
+    @@index([userId, date])
+    @@index([assetId])
 }
 
 model AssetArchive {
     id String @default(cuid()) @id
-    userAsset UserAsset @relation(fields: [userAssetId], references: [id])
+    userAsset UserAsset @relation(fields: [userAssetId], references: [id], onDelete: Cascade)
     userAssetId String
     amount Float
     date DateTime
+
+    @@index([userAssetId, date])
 }

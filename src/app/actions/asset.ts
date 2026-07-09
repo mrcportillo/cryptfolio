@@ -1,102 +1,123 @@
 "use server";
-import { getSession } from "@auth0/nextjs-auth0";
-import prisma from "../../services/prisma/client";
+import { requireCurrentUser } from "@/lib/auth";
+import { logServerError } from "@/lib/logger";
+import { validateAssetFormData } from "@/lib/validation";
+import type { AssetActionState } from "@/types/action";
+import prisma from "@/services/prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-function requireString(formData: FormData, key: string): string {
-  const value = formData.get(key);
-  if (typeof value !== "string") {
-    throw new Error(`Missing form value: ${key}`);
-  }
-  return value;
-}
+export async function create(
+  _previousState: AssetActionState,
+  formData: FormData,
+): Promise<AssetActionState> {
+  const user = await requireCurrentUser();
+  const validation = validateAssetFormData(formData);
 
-export async function create(formData: FormData) {
-  const session = await getSession();
-  const user = session?.user;
-  if (!user?.sub) {
-    throw new Error("Unauthorized");
+  if (!validation.values) {
+    return { fieldErrors: validation.fieldErrors };
   }
-  const newAsset = {
-    userId: user.sub,
-    assetId: requireString(formData, "coin"),
-    assetName: requireString(formData, "name"),
-    amount: Number(requireString(formData, "amount")),
-  };
 
   try {
     await prisma.userAsset.create({
-      data: newAsset,
+      data: {
+        userId: user.id,
+        assetId: validation.values.assetId,
+        assetName: validation.values.assetName,
+        amount: validation.values.amount,
+      },
     });
   } catch (error) {
-    console.error(error);
-    throw new Error("Error creating asset");
+    logServerError("asset.create", error, { userId: user.id });
+    return { error: "We could not create the asset. Please try again." };
   }
+
   redirect("/home");
 }
 
-export async function update(formData: FormData) {
-  const userAssetId = requireString(formData, "id");
+export async function update(
+  _previousState: AssetActionState,
+  formData: FormData,
+): Promise<AssetActionState> {
+  const user = await requireCurrentUser();
+  const validation = validateAssetFormData(formData, {
+    requireId: true,
+    requireCoin: false,
+  });
+
+  if (!validation.values?.id) {
+    return { fieldErrors: validation.fieldErrors };
+  }
+
+  const userAssetId = validation.values.id;
   let asset;
   try {
-    asset = await prisma.userAsset.findUnique({
+    asset = await prisma.userAsset.findFirst({
       where: {
         id: userAssetId,
+        userId: user.id,
       },
     });
   } catch (error) {
-    console.error(error);
-    throw new Error("Error getting asset");
+    logServerError("asset.update.lookup", error, { userId: user.id });
+    return { error: "We could not load the asset. Please try again." };
   }
 
   if (!asset) {
-    throw new Error("Asset not found");
+    return { error: "Asset not found." };
   }
 
   try {
-    await prisma.assetArchive.create({
-      data: {
-        userAssetId,
-        amount: asset.amount,
-        date: asset.date,
-      },
-    });
+    await prisma.$transaction([
+      prisma.assetArchive.create({
+        data: {
+          userAssetId,
+          amount: asset.amount,
+          date: asset.date,
+        },
+      }),
+      prisma.userAsset.update({
+        where: { id: userAssetId },
+        data: {
+          assetName: validation.values.assetName,
+          amount: validation.values.amount,
+          date: new Date(),
+        },
+      }),
+    ]);
   } catch (error) {
-    console.error(error);
-    throw new Error("Error creating asset archive");
+    logServerError("asset.update", error, { userId: user.id });
+    return { error: "We could not update the asset. Please try again." };
   }
 
-  const updatedAsset = {
-    assetName: requireString(formData, "name"),
-    amount: Number(requireString(formData, "amount")),
-    date: new Date(),
-  };
-
-  try {
-    await prisma.userAsset.update({
-      where: {
-        id: userAssetId,
-      },
-      data: updatedAsset,
-    });
-  } catch (error) {
-    console.error(error);
-    throw new Error("Error updating asset");
-  }
   revalidatePath("/home");
+  revalidatePath(`/assets/${userAssetId}`);
+  return {};
 }
 
 export async function remove(assetId: string) {
+  const user = await requireCurrentUser();
+
   try {
+    const asset = await prisma.userAsset.findFirst({
+      where: { id: assetId, userId: user.id },
+      select: { id: true },
+    });
+
+    if (!asset) {
+      throw new Error("Asset not found");
+    }
+
     await prisma.userAsset.delete({
       where: {
         id: assetId,
       },
     });
   } catch (error) {
-    console.error(error);
-    throw new Error("Error deleting asset");
+    logServerError("asset.remove", error, { userId: user.id });
+    throw new Error("We could not remove the asset.");
   }
+
+  revalidatePath("/home");
   redirect("/home");
 }

@@ -1,8 +1,8 @@
 "use client";
 import { formatNumber } from "@/utils/numbers";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { AssetWithPrice } from "@/types/asset";
-import type { MouseEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Pencil } from "lucide-react";
@@ -35,31 +35,28 @@ type AssetPillProps = {
 };
 
 export default function AssetPill({ asset, onEdit }: AssetPillProps) {
-  const router = useRouter();
-  const totalValue = formatNumber(asset.amount * asset.price);
-
-  const onEditClick = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    onEdit?.();
-  };
+  const totalValue =
+    asset.price == null ? "—" : formatNumber(asset.amount * asset.price, 2);
 
   return (
-    <Card
-      className="w-full cursor-pointer border-0 bg-gradient-to-br from-primary-200 via-primary-400 to-primary-700 text-primary-50 shadow-lg sm:w-[320px] lg:w-[360px]"
-      role="link"
-      tabIndex={0}
-      onClick={() => router.push(`/assets/${asset.id}`)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          if (event.key === " ") {
-            event.preventDefault();
-          }
-          router.push(`/assets/${asset.id}`);
-        }
-      }}
-    >
-      <CardHeader className="pb-4">
-        <div className="flex items-start justify-between gap-3">
+    <Card className="relative w-full border-0 bg-gradient-to-br from-primary-200 via-primary-400 to-primary-700 text-primary-50 shadow-lg sm:w-[320px] lg:w-[360px]">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute right-4 top-4 z-10 h-9 w-9 text-primary-50 hover:bg-primary-900/20 hover:text-white"
+        onClick={onEdit}
+        disabled={!onEdit}
+        aria-label={`Edit asset ${asset.assetName}`}
+        title="Edit asset"
+      >
+        <Pencil className="h-4 w-4" />
+      </Button>
+      <Link
+        href={`/assets/${asset.id}`}
+        className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        aria-label={`View asset ${asset.assetName}`}
+      >
+        <CardHeader className="pb-4 pr-16">
           <div className="space-y-2">
             <AssetName name={asset.assetName} />
             <div>
@@ -67,35 +64,24 @@ export default function AssetPill({ asset, onEdit }: AssetPillProps) {
                 Total value
               </div>
               <div className="text-3xl font-semibold text-white md:text-4xl">
-                ${totalValue}
+                {totalValue === "—" ? totalValue : `$${totalValue}`}
               </div>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-primary-50 hover:bg-primary-900/20 hover:text-white"
-            onClick={onEditClick}
-            disabled={!onEdit}
-            aria-label="Edit asset"
-            title="Edit asset"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2 pt-0">
-        <AssetAttribute label="Coin" value={asset.assetId} />
-        <AssetAttribute label="Amount" value={asset.amount} />
-        <AssetAttribute
-          label="Asset value"
-          value={`$${formatNumber(asset.price)}`}
-        />
-        <AssetAttribute
-          label="Last updated"
-          value={new Date(asset.date).toDateString()}
-        />
-      </CardContent>
+        </CardHeader>
+        <CardContent className="space-y-2 pt-0">
+          <AssetAttribute label="Coin" value={asset.coinName} />
+          <AssetAttribute label="Amount" value={formatNumber(asset.amount)} />
+          <AssetAttribute
+            label="Price per coin"
+            value={asset.price == null ? "—" : `$${formatNumber(asset.price)}`}
+          />
+          <AssetAttribute
+            label="Last updated"
+            value={new Date(asset.date).toLocaleDateString()}
+          />
+        </CardContent>
+      </Link>
     </Card>
   );
 }

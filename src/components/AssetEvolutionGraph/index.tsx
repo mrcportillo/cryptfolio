@@ -1,5 +1,6 @@
 import { getAssetArchiveByUserAssetId } from "@/utils/db-api";
-import LineChart from "../charts/LineChart";
+import LazyLineChart from "../charts/LineChart/LazyLineChart";
+import { requireCurrentUser } from "@/lib/auth";
 import { Suspense } from "react";
 import type { AssetArchive } from "@prisma/client";
 
@@ -14,9 +15,14 @@ const AssetEvolution = async ({
   assetName,
   currentAmount,
 }: AssetEvolutionProps) => {
-  const data = await getAssetArchiveByUserAssetId(assetId, 100, 1);
+  const user = await requireCurrentUser();
+  const data = await getAssetArchiveByUserAssetId(user.id, assetId, 100, 1);
   if (data.length === 0)
-    return <div>There is no historical data to show an evolution graph</div>;
+    return (
+      <div className="text-sm text-muted-foreground" role="status">
+        There is no historical data to show an evolution graph.
+      </div>
+    );
 
   const dataKeys = [assetName];
   const formatedDataForChart = data.map((item: AssetArchive) => ({
@@ -29,7 +35,12 @@ const AssetEvolution = async ({
   });
 
   return (
-    <LineChart data={formatedDataForChart} xKey="date" dataKeys={dataKeys} />
+    <LazyLineChart
+      data={formatedDataForChart}
+      xKey="date"
+      dataKeys={dataKeys}
+      ariaLabel={`Holding evolution for ${assetName}`}
+    />
   );
 };
 

@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const NavContainer = ({ children }: PropsWithChildren) => (
-  <nav className="bg-primary-100 shadow-md">
-    <div className="flex py-2 pr-2 md:px-4">{children}</div>
+  <nav aria-label="Primary navigation" className="bg-primary-100 shadow-md">
+    <div className="flex flex-wrap items-center py-2 pr-2 md:px-4">
+      {children}
+    </div>
   </nav>
 );
 
@@ -30,7 +32,9 @@ const NavItem = ({ path, children, danger = false, active }: NavItemProps) => (
       active ? "text-muted-foreground" : "text-slate-900 hover:text-slate-500",
     )}
   >
-    <Link href={path}>{children}</Link>
+    <Link href={path} aria-current={active ? "page" : undefined}>
+      {children}
+    </Link>
   </Button>
 );
 
@@ -53,13 +57,15 @@ const UserAvatar = ({ src, alt }: UserAvatarProps) => (
 );
 
 const AppImage = () => (
-  <Image
-    src="/images/logo.png"
-    alt="App Logo"
-    width={60}
-    height={60}
-    className="h-14"
-  />
+  <Link href="/home" aria-label="Go to home">
+    <Image
+      src="/images/logo.png"
+      alt="Cryptfolio logo"
+      width={60}
+      height={60}
+      className="h-14 w-auto"
+    />
+  </Link>
 );
 
 export default function NavBar() {
@@ -78,8 +84,16 @@ export default function NavBar() {
       <RightContainer>
         {!user ? (
           <NavItem path="/api/auth/login">Login</NavItem>
+        ) : user.picture ? (
+          <UserAvatar src={user.picture} alt={user.name ?? "User profile"} />
         ) : (
-          <UserAvatar src={user.picture} alt={user.name} />
+          <Link
+            href="/user"
+            className="self-center rounded-full bg-primary-700 px-3 py-2 text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {user.name?.slice(0, 1) ?? "U"}
+            <span className="sr-only">Open profile</span>
+          </Link>
         )}
       </RightContainer>
     </NavContainer>

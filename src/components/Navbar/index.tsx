@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { PropsWithChildren } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { AUTH0_PROFILE_ROUTE } from "@/lib/auth-routes";
 import { cn } from "@/lib/utils";
 
 const NavContainer = ({ children }: PropsWithChildren) => (
@@ -69,7 +70,7 @@ const AppImage = () => (
 );
 
 export default function NavBar() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading } = useUser({ route: AUTH0_PROFILE_ROUTE });
   const currentPath = usePathname();
 
   return (

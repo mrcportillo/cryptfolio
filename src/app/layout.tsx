@@ -3,7 +3,8 @@ import "./globals.css";
 import NavBar from "../components/Navbar";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
-import { AUTH0_PROFILE_ROUTE, auth0 } from "@/lib/auth0";
+import { AUTH0_PROFILE_ROUTE } from "@/lib/auth-routes";
+import { auth0 } from "@/lib/auth0";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 

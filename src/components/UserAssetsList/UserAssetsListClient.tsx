@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import AssetPill from "@/components/AssetPill";
 import AssetEditPanel from "@/components/AssetEditPanel";
+import { sortAssetsByValue } from "@/lib/assets";
 import type { AssetWithPrice } from "@/types/asset";
 import type { AssetActionState } from "@/types/action";
 
@@ -38,10 +39,12 @@ export default function UserAssetsListClient({
   };
 
   const filteredAssets = useMemo(() => {
-    if (selectedCoinFilter === "all") {
-      return assets;
-    }
-    return assets.filter((asset) => asset.assetId === selectedCoinFilter);
+    const visibleAssets =
+      selectedCoinFilter === "all"
+        ? assets
+        : assets.filter((asset) => asset.assetId === selectedCoinFilter);
+
+    return sortAssetsByValue(visibleAssets);
   }, [assets, selectedCoinFilter]);
 
   return (

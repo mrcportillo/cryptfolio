@@ -2,6 +2,7 @@
   "name": "cyptfolio",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.11.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,7 +10,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "node --experimental-strip-types --test test/*.test.mjs",
-    "audit": "npm audit --omit=dev"
+    "audit": "pnpm audit --prod"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.25.0",

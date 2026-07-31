@@ -5,7 +5,7 @@ Cryptfolio is a Next.js application for tracking cryptocurrency holdings. It use
 ## Requirements
 
 - Node.js 20 or newer
-- npm
+- pnpm 11
 - PostgreSQL
 - Auth0 Regular Web Application
 - CoinGecko API key
@@ -35,30 +35,30 @@ Register these Auth0 URLs for local development:
 ## Development
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 The application requires an authenticated Auth0 session. Authentication is handled by the middleware boundary and is checked again inside Server Actions, route handlers, and the data-access layer.
 
 ## Scripts
 
-- `npm run dev` — start the development server
-- `npm run build` — create a production build
-- `npm run start` — start the production server
-- `npm run lint` — run ESLint
-- `npm test` — run validation and pagination tests
-- `npm run audit` — audit production dependencies
+- `pnpm dev` — start the development server
+- `pnpm build` — create a production build
+- `pnpm start` — start the production server
+- `pnpm lint` — run ESLint
+- `pnpm test` — run validation and pagination tests
+- `pnpm run audit` — audit production dependencies
 
-The current Next.js release line has a moderate PostCSS advisory reported for its pinned nested PostCSS dependency. `npm audit fix --force` incorrectly proposes downgrading Next.js to 9.x, so upgrades should be re-evaluated when the Next.js release line publishes a compatible PostCSS update.
+The current Next.js release line has a moderate PostCSS advisory reported for its pinned nested PostCSS dependency. Avoid forcing an automated audit fix that downgrades Next.js; re-evaluate upgrades when the Next.js release line publishes a compatible PostCSS update.
 
 ## Data model and database changes
 
 The Prisma schema includes ownership indexes and cascading archive deletion. Apply schema changes through the normal Prisma migration workflow in each environment; do not use `db push` against production.
 
 ```bash
-npx prisma migrate dev --name add_asset_indexes_and_archive_cascade
-npx prisma generate
+pnpm prisma migrate dev --name add_asset_indexes_and_archive_cascade
+pnpm prisma generate
 ```
 
 ## Architecture notes

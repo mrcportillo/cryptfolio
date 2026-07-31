@@ -14,6 +14,8 @@ function getAuth0Domain() {
 
 const baseUrl = process.env.APP_BASE_URL ?? process.env.AUTH0_BASE_URL;
 
+export const AUTH0_PROFILE_ROUTE = "/api/auth/me";
+
 export const auth0 = new Auth0Client({
   domain: getAuth0Domain(),
   appBaseUrl: baseUrl,
@@ -21,7 +23,7 @@ export const auth0 = new Auth0Client({
     login: "/api/auth/login",
     logout: "/api/auth/logout",
     callback: "/api/auth/callback",
-    profile: "/api/auth/me",
+    profile: AUTH0_PROFILE_ROUTE,
   },
   onCallback: async (error, context, session) => {
     const redirectBase = context.appBaseUrl ?? baseUrl ?? "http://localhost:3000";

@@ -69,7 +69,7 @@ const AppImage = () => (
 );
 
 export default function NavBar() {
-  const { user } = useUser();
+  const { user, isLoading } = useUser();
   const currentPath = usePathname();
 
   return (
@@ -82,11 +82,9 @@ export default function NavBar() {
         Trend
       </NavItem>
       <RightContainer>
-        {!user ? (
-          <NavItem path="/api/auth/login">Login</NavItem>
-        ) : user.picture ? (
+        {user?.picture ? (
           <UserAvatar src={user.picture} alt={user.name ?? "User profile"} />
-        ) : (
+        ) : user ? (
           <Link
             href="/user"
             className="self-center rounded-full bg-primary-700 px-3 py-2 text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -94,6 +92,8 @@ export default function NavBar() {
             {user.name?.slice(0, 1) ?? "U"}
             <span className="sr-only">Open profile</span>
           </Link>
+        ) : isLoading ? null : (
+          <NavItem path="/api/auth/login">Login</NavItem>
         )}
       </RightContainer>
     </NavContainer>

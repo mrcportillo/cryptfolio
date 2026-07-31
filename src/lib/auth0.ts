@@ -1,5 +1,6 @@
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
 import { NextResponse } from "next/server";
+import { AUTH0_PROFILE_ROUTE } from "@/lib/auth-routes";
 import { logServerError } from "@/lib/logger";
 import prisma from "@/services/prisma/client";
 
@@ -13,8 +14,6 @@ function getAuth0Domain() {
 }
 
 const baseUrl = process.env.APP_BASE_URL ?? process.env.AUTH0_BASE_URL;
-
-export const AUTH0_PROFILE_ROUTE = "/api/auth/me";
 
 export const auth0 = new Auth0Client({
   domain: getAuth0Domain(),

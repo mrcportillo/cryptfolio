@@ -1,6 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
 import Image from "next/image";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -32,7 +31,7 @@ export default async function Profile() {
               <div>
                 <h2 className="text-lg font-semibold">{user.name}</h2>
                 <Button asChild variant="destructive" className="mt-2">
-                  <Link href="/api/auth/logout">Logout</Link>
+                  <a href="/api/auth/logout">Logout</a>
                 </Button>
               </div>
             </div>

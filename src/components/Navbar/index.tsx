@@ -23,21 +23,33 @@ type NavItemProps = PropsWithChildren<{
   active?: boolean;
 }>;
 
-const NavItem = ({ path, children, danger = false, active }: NavItemProps) => (
-  <Button
-    asChild
-    variant="ghost"
-    className={cn(
-      "h-auto px-3 py-4 text-sm font-medium",
-      danger && "text-destructive hover:text-destructive",
-      active ? "text-muted-foreground" : "text-slate-900 hover:text-slate-500",
-    )}
-  >
+const NavItem = ({ path, children, danger = false, active }: NavItemProps) => {
+  const content = path.startsWith("/api/auth/") ? (
+    <a href={path} aria-current={active ? "page" : undefined}>
+      {children}
+    </a>
+  ) : (
     <Link href={path} aria-current={active ? "page" : undefined}>
       {children}
     </Link>
-  </Button>
-);
+  );
+
+  return (
+    <Button
+      asChild
+      variant="ghost"
+      className={cn(
+        "h-auto px-3 py-4 text-sm font-medium",
+        danger && "text-destructive hover:text-destructive",
+        active
+          ? "text-muted-foreground"
+          : "text-slate-900 hover:text-slate-500",
+      )}
+    >
+      {content}
+    </Button>
+  );
+};
 
 const RightContainer = ({ children }: PropsWithChildren) => (
   <div className="ml-auto flex">{children}</div>

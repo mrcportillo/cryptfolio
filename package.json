@@ -10,7 +10,9 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "node --experimental-strip-types --test test/*.test.mjs",
-    "audit": "pnpm audit --prod"
+    "test:ledger-postgres": "CRYPTFOLIO_REQUIRE_LEDGER_TEST_DATABASE=1 node --test test/opening-balances-postgres.test.mjs",
+    "audit": "pnpm audit --prod",
+    "ledger:opening-balances": "node scripts/portfolio-ledger/opening-balances.mjs"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.25.0",

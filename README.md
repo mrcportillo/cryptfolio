@@ -48,7 +48,9 @@ The application requires an authenticated Auth0 session. Authentication is handl
 - `pnpm start` — start the production server
 - `pnpm lint` — run ESLint
 - `pnpm test` — run validation and pagination tests
+- `pnpm test:ledger-postgres` — run opt-in ledger integration tests against an explicitly supplied disposable local PostgreSQL database
 - `pnpm run audit` — audit production dependencies
+- `pnpm ledger:opening-balances -- --help` — inspect the dry-run-first opening-balance cutover command
 
 The current Next.js release line has a moderate PostCSS advisory reported for its pinned nested PostCSS dependency. Avoid forcing an automated audit fix that downgrades Next.js; re-evaluate upgrades when the Next.js release line publishes a compatible PostCSS update.
 
@@ -60,6 +62,19 @@ The Prisma schema includes ownership indexes and cascading archive deletion. App
 pnpm prisma migrate dev --name add_asset_indexes_and_archive_cascade
 pnpm prisma generate
 ```
+
+The repository now contains a legacy baseline migration because the deployed
+schema predates Prisma migration tracking. Do not run that baseline against an
+existing database. Follow the checked, staged procedure in
+[`docs/operations/opening-balance-cutover.md`](docs/operations/opening-balance-cutover.md),
+including baseline verification and `prisma migrate resolve`, before deploying
+the additive ledger migration. Opening-balance apply mode remains deferred until
+all position writes are ledger-aware.
+
+The PostgreSQL ledger integration suite never reads `.env.local`. Supply
+`CRYPTFOLIO_LEDGER_TEST_DATABASE_URL` explicitly; the harness refuses
+non-loopback hosts and database names that do not contain both `cryptfolio` and
+`test`, then creates and removes only uniquely named test schemas.
 
 ## Architecture notes
 

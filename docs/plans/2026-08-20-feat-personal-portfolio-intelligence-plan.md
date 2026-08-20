@@ -44,7 +44,7 @@ Cryptfolio can answer all of the following without treating a balance update as 
 ### Included
 
 - Opening-balance cutover with no backfill.
-- Manual opening, buy, sell, transfer, swap, fee, and correction events.
+- Manual opening, buy, sell, transfer, swap, and fee events, plus a correction operation that writes a reversal and replacement.
 - Derived holdings and current worth.
 - Stored daily snapshots plus live current valuation.
 - Cash-flow-adjusted total and per-coin market movement.
@@ -144,12 +144,13 @@ ending worth = starting worth + net external flow + market movement - fees
 
 ## User flows
 
-### First visit after rollout
+### Controlled adoption after ledger-aware writes
 
-1. The system converts each positive existing balance into an opening event.
-2. It creates the adoption-date baseline snapshot.
-3. It verifies derived quantities equal the pre-cutover amounts within decimal tolerance.
-4. The user sees the same current holdings and no fabricated pre-adoption performance.
+1. An operator freezes legacy balance writes or deploys the transaction-aware write path.
+2. The system converts each positive existing balance into an opening event.
+3. It persists the adoption boundary and verifies opening quantities exactly equal the pre-cutover amounts.
+4. The daily-valuation slice creates the adoption-date valued baseline snapshot without inventing execution prices.
+5. The user sees the same current holdings and no fabricated pre-adoption performance.
 
 If conversion is retried, unique migration markers prevent duplicate opening events.
 
@@ -257,12 +258,12 @@ Scope asset reads, updates, deletes, archive reads, and new financial records to
 
 ### 2. Introduce opening balances and transaction ledger
 
-Add decimal ledger models, an idempotent opening-balance cutover, and verification while retaining legacy data for rollback.
+Add decimal ledger models, an idempotent opening-balance cutover, and verification while retaining legacy data for rollback. This slice makes the schema and tooling deployable but does not run production conversion: apply waits for the ledger-aware write path in slice 3 or an explicit write freeze. The valued baseline snapshot belongs to slice 4.
 
 **Acceptance criteria**
 
 - Each positive current holding produces exactly one opening event.
-- Derived post-cutover quantities match current amounts within tolerance.
+- Derived post-cutover quantities exactly match the representable current amounts.
 - Retrying the conversion creates no duplicates.
 - No performance is shown before adoption.
 

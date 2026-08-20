@@ -3,38 +3,94 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
   directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
 }
 
 model User {
-    id String @id
-    name String
-    email String @unique
-    userAssets UserAsset[]
+  id              String           @id
+  name            String
+  email           String           @unique
+  ledgerAdoptedAt DateTime?
+  userAssets      UserAsset[]
+  portfolioEvents PortfolioEvent[]
 }
 
 model UserAsset {
-    id String @default(cuid()) @id
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-    userId String
-    assetId String
-    assetName String
-    amount Float
-    date DateTime @default(now())
-    assetArchive AssetArchive[]
+  id           String          @id @default(cuid())
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  assetId      String
+  assetName    String
+  amount       Float
+  date         DateTime        @default(now())
+  assetArchive AssetArchive[]
+  movements    AssetMovement[]
+  openingEvent PortfolioEvent?
 
-    @@index([userId, date])
-    @@index([assetId])
+  @@unique([id, userId])
+  @@index([userId, date])
+  @@index([assetId])
 }
 
 model AssetArchive {
-    id String @default(cuid()) @id
-    userAsset UserAsset @relation(fields: [userAssetId], references: [id], onDelete: Cascade)
-    userAssetId String
-    amount Float
-    date DateTime
+  id          String    @id @default(cuid())
+  userAsset   UserAsset @relation(fields: [userAssetId], references: [id], onDelete: Cascade)
+  userAssetId String
+  amount      Float
+  date        DateTime
 
-    @@index([userAssetId, date])
+  @@index([userAssetId, date])
+}
+
+enum PortfolioEventKind {
+  OPENING_BALANCE
+  BUY
+  SELL
+  TRANSFER_IN
+  TRANSFER_OUT
+  SWAP
+  FEE
+  REVERSAL
+}
+
+model PortfolioEvent {
+  id                    String             @id @default(cuid())
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId                String
+  kind                  PortfolioEventKind
+  occurredAt            DateTime
+  externalFlowUsd       Decimal?           @db.Decimal(65, 30)
+  feeUsd                Decimal?           @db.Decimal(65, 30)
+  idempotencyKey        String             @db.VarChar(160)
+  openingForUserAsset   UserAsset?         @relation(fields: [openingForUserAssetId, userId], references: [id, userId], onDelete: Restrict)
+  openingForUserAssetId String?
+  reversalOf            PortfolioEvent?    @relation("PortfolioEventReversal", fields: [reversalOfEventId, userId], references: [id, userId], onDelete: Restrict)
+  reversalOfEventId     String?
+  reversedBy            PortfolioEvent?    @relation("PortfolioEventReversal")
+  movements             AssetMovement[]
+  createdAt             DateTime           @default(now())
+
+  @@unique([id, userId])
+  @@unique([userId, idempotencyKey])
+  @@unique([openingForUserAssetId, userId])
+  @@unique([reversalOfEventId, userId])
+  @@index([userId, occurredAt, id])
+}
+
+model AssetMovement {
+  id               String         @id @default(cuid())
+  userId           String
+  portfolioEvent   PortfolioEvent @relation(fields: [portfolioEventId, userId], references: [id, userId], onDelete: Restrict)
+  portfolioEventId String
+  userAsset        UserAsset      @relation(fields: [userAssetId, userId], references: [id, userId], onDelete: Restrict)
+  userAssetId      String
+  quantityDelta    Decimal        @db.Decimal(65, 30)
+  unitPriceUsd     Decimal?       @db.Decimal(65, 30)
+  priceEstimated   Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+
+  @@index([userId, userAssetId, createdAt, id])
+  @@index([userId, portfolioEventId])
 }

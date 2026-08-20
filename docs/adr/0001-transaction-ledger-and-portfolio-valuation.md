@@ -27,7 +27,9 @@ At rollout, create one `OPENING_BALANCE` event for every existing `UserAsset` wi
 
 Opening balances establish the first performance baseline. They are not deposits, gains, or historical purchases. Reports must not claim performance before this boundary.
 
-The conversion must be idempotent and verified before the legacy amount or archive fields are retired. Existing `AssetArchive` rows remain read-only during the transition and are not converted into transactions.
+The conversion must be idempotent and verified before the legacy amount or archive fields are retired. Existing `AssetArchive` rows remain read-only during the transition and are not converted into transactions. The additive schema and dry-run tooling ship before conversion; apply mode is used only after transaction-aware writes replace the legacy balance mutation path, or during an explicit write freeze.
+
+The adoption boundary and exact opening quantities are ledger data. The USD-valued baseline snapshot is a separate valuation concern and is introduced with daily valuation; opening conversion must not invent prices.
 
 ### 2. Make the transaction ledger the source of truth
 
@@ -42,9 +44,9 @@ Supported event intents are:
 - `TRANSFER_OUT`
 - `SWAP`
 - `FEE`
-- `CORRECTION`
+- `REVERSAL`
 
-A swap contains at least two asset movements under one event. A fee paid in a tracked coin is another negative movement on the same event. Corrections do not rewrite financial history: they reverse the incorrect event and create a replacement linked to it.
+A swap contains at least two asset movements under one event. A fee paid in a tracked coin is another negative movement on the same event. Correction is an operation, not an event kind: it creates a durable `REVERSAL` linked to the incorrect event, then creates a replacement event of the original intent. The replacement link and cross-event semantic validation belong to the manual-transaction service.
 
 Quantities and money use database decimal types, never binary floating point. A transaction cannot leave a position below zero unless a future ADR explicitly introduces borrowing or short positions.
 
@@ -58,7 +60,7 @@ Each event records its USD external-flow effect:
 - Opening balances establish the baseline and have zero reportable external flow.
 - Fees are reported separately from external flow and market movement.
 
-For manual events, the user may enter the actual USD total and fee. If omitted, Cryptfolio may estimate the value from the closest available CoinGecko price and must label the result as estimated.
+For manual events, the user may enter the actual USD total and fee. Omitted monetary values remain `NULL` and mean unknown, never zero. If Cryptfolio later estimates a value from CoinGecko, it must persist and label that estimate explicitly rather than silently changing unknown to zero.
 
 ### 4. Use hybrid valuation history
 
@@ -93,7 +95,9 @@ Every position, event, movement, snapshot, allocation target, and scenario read 
 
 ### 7. Preserve history
 
-Positions with ledger history are archived when no longer active; they are not hard-deleted. Events and completed snapshots are immutable except through explicit repair or reversal workflows that retain an audit trail.
+Positions with ledger history are archived when no longer active; they are not hard-deleted. Events and completed snapshots are immutable except through explicit repair or reversal workflows that retain an audit trail. A user with ledger history cannot be deleted through ordinary cascading deletion; account erasure requires a future explicit, audited workflow that defines how financial history is removed.
+
+Opening-event completeness is enforced by deferred database constraints so an event and movement can be created in either order. Prisma 5.10 ledger writers must explicitly flush those named constraints with an awaited `SET CONSTRAINTS ... IMMEDIATE` before returning the interactive transaction callback; otherwise a commit-time constraint error may not be surfaced to application code.
 
 ## Consequences
 

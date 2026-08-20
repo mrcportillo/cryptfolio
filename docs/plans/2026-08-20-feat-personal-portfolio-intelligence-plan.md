@@ -36,7 +36,7 @@ Cryptfolio can answer all of the following without treating a balance update as 
 - The total-worth card multiplies current quantities by live CoinGecko prices but has no historical worth or attribution (`src/components/UserPortfolioValue/index.tsx:18`).
 - The Trend page ranks generic market-cap movers rather than movements by personal portfolio impact (`src/app/trend/page.tsx:94`).
 - CoinGecko historical market-chart data is already consumed for charts (`src/services/coin/marketChart.ts:4`).
-- Position pages, archives, and pre-mutation lookups are owner-scoped, but the final Prisma update and delete predicates still use record ID alone and cross-user mutation tests are missing (`src/utils/db-api.ts:12`, `src/app/actions/asset.ts:74`).
+- Position reads and final mutations are owner-scoped, with optimistic concurrency protecting archived history and automated cross-user query/mutation coverage (`src/services/asset/queries.ts`, `src/services/asset/mutations.ts`).
 - The repository has no prior ADR, plan, issue-template, or documented-solutions convention.
 
 ## Product boundaries
@@ -251,9 +251,9 @@ Scope asset reads, updates, deletes, archive reads, and new financial records to
 
 **Acceptance criteria**
 
-- Another authenticated user cannot read or mutate a position by guessing its ID.
-- Server actions derive user identity from the session, not submitted form data.
-- Unauthorized and missing records have deliberate, tested responses.
+- [x] Another authenticated user cannot read or mutate a position by guessing its ID.
+- [x] Server actions derive user identity from the session, not submitted form data.
+- [x] Unauthorized and missing records have deliberate, tested responses.
 
 ### 2. Introduce opening balances and transaction ledger
 

@@ -4,6 +4,7 @@ import { logServerError } from "@/lib/logger";
 import { validateAssetFormData } from "@/lib/validation";
 import type { AssetActionState } from "@/types/action";
 import prisma from "@/services/prisma/client";
+import { deleteOwnedAsset, updateOwnedAsset } from "@/services/asset/mutations";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -68,23 +69,14 @@ export async function update(
   }
 
   try {
-    await prisma.$transaction([
-      prisma.assetArchive.create({
-        data: {
-          userAssetId,
-          amount: asset.amount,
-          date: asset.date,
-        },
-      }),
-      prisma.userAsset.update({
-        where: { id: userAssetId },
-        data: {
-          assetName: validation.values.assetName,
-          amount: validation.values.amount,
-          date: new Date(),
-        },
-      }),
-    ]);
+    await updateOwnedAsset(prisma, {
+      id: userAssetId,
+      userId: user.id,
+      previousAmount: asset.amount,
+      previousDate: asset.date,
+      assetName: validation.values.assetName,
+      amount: validation.values.amount,
+    });
   } catch (error) {
     logServerError("asset.update", error, { userId: user.id });
     return { error: "We could not update the asset. Please try again." };
@@ -108,11 +100,7 @@ export async function remove(assetId: string) {
       throw new Error("Asset not found");
     }
 
-    await prisma.userAsset.delete({
-      where: {
-        id: assetId,
-      },
-    });
+    await deleteOwnedAsset(prisma, assetId, user.id);
   } catch (error) {
     logServerError("asset.remove", error, { userId: user.id });
     throw new Error("We could not remove the asset.");

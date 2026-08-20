@@ -1,4 +1,8 @@
 import prisma from "@/services/prisma/client";
+import {
+  findOwnedAssetArchives,
+  findOwnedAssetById,
+} from "@/services/asset/queries";
 import type { AssetArchive, UserAsset } from "@prisma/client";
 
 export type UserAssetSummary = Pick<
@@ -15,12 +19,7 @@ export async function getAssetById(
   id: string,
   userId: string,
 ): Promise<UserAsset | null> {
-  return prisma.userAsset.findFirst({
-    where: {
-      id,
-      userId,
-    },
-  });
+  return findOwnedAssetById(prisma, id, userId);
 }
 
 export async function getUserAssetsByUserId(
@@ -88,15 +87,5 @@ export async function getAssetArchiveByUserAssetId(
   pageSize: number,
   page: number,
 ): Promise<AssetArchive[]> {
-  return prisma.assetArchive.findMany({
-    where: {
-      userAssetId: userAssetId,
-      userAsset: { userId },
-    },
-    orderBy: {
-      date: "asc",
-    },
-    take: pageSize,
-    skip: (page - 1) * pageSize,
-  });
+  return findOwnedAssetArchives(prisma, userId, userAssetId, pageSize, page);
 }

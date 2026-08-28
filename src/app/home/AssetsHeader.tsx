@@ -2,16 +2,20 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { NotebookPen, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CoinFilter from "@/app/home/CoinFilter";
 import type { CoinOption } from "@/types/coin";
 
 type AssetsHeaderProps = {
   coinOptions: CoinOption[];
+  ledgerAdopted: boolean;
 };
 
-export default function AssetsHeader({ coinOptions }: AssetsHeaderProps) {
+export default function AssetsHeader({
+  coinOptions,
+  ledgerAdopted,
+}: AssetsHeaderProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentFilter = searchParams.get("coin") || "all";
@@ -35,13 +39,36 @@ export default function AssetsHeader({ coinOptions }: AssetsHeaderProps) {
         selectedCoinFilter={currentFilter}
       />
       <div className="flex-1 basis-full sm:basis-0" />
-      <div>
-        <Button asChild>
-          <Link href="/assets/new" className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New asset
-          </Link>
-        </Button>
+      <div className="flex flex-wrap gap-2">
+        {ledgerAdopted ? (
+          <>
+            <Button asChild variant="outline">
+              <Link
+                href="/transactions/new?kind=TRANSFER_IN&position=new"
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                New position
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link
+                href="/transactions/new"
+                className="flex items-center gap-2"
+              >
+                <NotebookPen className="h-4 w-4" aria-hidden="true" />
+                Record transaction
+              </Link>
+            </Button>
+          </>
+        ) : (
+          <Button asChild>
+            <Link href="/assets/new" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              New asset
+            </Link>
+          </Button>
+        )}
       </div>
     </div>
   );

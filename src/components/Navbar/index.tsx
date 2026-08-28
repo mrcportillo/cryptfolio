@@ -94,6 +94,12 @@ export default function NavBar() {
       <NavItem path="/trend" active={currentPath === "/trend"}>
         Trend
       </NavItem>
+      <NavItem
+        path="/transactions"
+        active={currentPath.startsWith("/transactions")}
+      >
+        Transactions
+      </NavItem>
       <RightContainer>
         {user?.picture ? (
           <UserAvatar src={user.picture} alt={user.name ?? "User profile"} />

@@ -50,3 +50,21 @@ test("rejects aliases longer than the configured limit", () => {
   assert.equal(result.values, undefined);
   assert.match(result.fieldErrors?.name ?? "", /characters or fewer/);
 });
+
+test("requires a valid caller-observed version for update forms", () => {
+  const missing = validateAssetFormData(
+    formData({ id: "position", name: "BTC", amount: "1" }),
+    { requireId: true, requireCoin: false, requireVersion: true },
+  );
+  assert.equal(
+    missing.fieldErrors?.id,
+    "Reload the asset before saving your changes.",
+  );
+
+  const version = "2026-08-20T12:00:00.000Z";
+  const valid = validateAssetFormData(
+    formData({ id: "position", version, name: "BTC", amount: "1" }),
+    { requireId: true, requireCoin: false, requireVersion: true },
+  );
+  assert.equal(valid.values?.expectedDate?.toISOString(), version);
+});

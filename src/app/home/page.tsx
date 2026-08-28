@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Plus } from "lucide-react";
+import { NotebookPen } from "lucide-react";
 import { requireCurrentUser } from "@/lib/auth";
 import { parsePagination } from "@/lib/pagination";
 import {
@@ -12,11 +12,7 @@ import AssetPagination from "@/app/home/AssetPagination";
 import UserAssetsList from "@/components/UserAssetsList";
 import UserPortfolioValue from "@/components/UserPortfolioValue";
 import { Button } from "@/components/ui/button";
-import {
-  getUserAssetCoinIds,
-  getUserAssetHoldingsByCoin,
-  getUserAssetsByUserId,
-} from "@/utils/db-api";
+import { getPortfolioHomeData } from "@/utils/db-api";
 import type { CoinOption } from "@/types/coin";
 
 const ASSET_PAGE_SIZE = 50;
@@ -37,15 +33,14 @@ export default async function Home({ searchParams }: HomeProps) {
   const assetIdFilter =
     selectedCoinFilter === "all" ? undefined : selectedCoinFilter;
 
-  const [assetsPage, coinIds, holdings] = await Promise.all([
-    getUserAssetsByUserId(user.id, {
+  const { assetsPage, coinIds, holdings } = await getPortfolioHomeData(
+    user.id,
+    {
       page: pagination.page,
       pageSize: pagination.pageSize,
       assetId: assetIdFilter,
-    }),
-    getUserAssetCoinIds(user.id),
-    getUserAssetHoldingsByCoin(user.id),
-  ]);
+    },
+  );
 
   const marketIds = Array.from(
     new Set([
@@ -84,17 +79,21 @@ export default async function Home({ searchParams }: HomeProps) {
             <h1 className="text-3xl font-semibold text-primary-950">Assets</h1>
             <div className="flex-1" />
             <Button disabled>
-              <Plus className="mr-2 h-4 w-4" />
-              New asset
+              <NotebookPen className="mr-2 h-4 w-4" />
+              Portfolio action
             </Button>
           </div>
         }
       >
-        <AssetsHeader coinOptions={coinOptions} />
+        <AssetsHeader
+          coinOptions={coinOptions}
+          ledgerAdopted={assetsPage.ledgerAdopted}
+        />
       </Suspense>
       <div className="my-4">
         <UserAssetsList
           assets={assets}
+          ledgerAdopted={assetsPage.ledgerAdopted}
           selectedCoinFilter={selectedCoinFilter}
         />
       </div>

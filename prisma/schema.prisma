@@ -18,19 +18,22 @@ model User {
 }
 
 model UserAsset {
-  id           String          @id @default(cuid())
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId       String
-  assetId      String
-  assetName    String
-  amount       Float
-  date         DateTime        @default(now())
-  assetArchive AssetArchive[]
-  movements    AssetMovement[]
-  openingEvent PortfolioEvent?
+  id                     String          @id @default(cuid())
+  user                   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                 String
+  assetId                String
+  assetName              String
+  amount                 Float
+  date                   DateTime        @default(now())
+  archivedAt             DateTime?
+  ledgerInitialAssetName String?         @db.VarChar(80)
+  assetArchive           AssetArchive[]
+  movements              AssetMovement[]
+  openingEvent           PortfolioEvent?
 
   @@unique([id, userId])
   @@index([userId, date])
+  @@index([userId, archivedAt, date])
   @@index([assetId])
 }
 
@@ -55,20 +58,30 @@ enum PortfolioEventKind {
   REVERSAL
 }
 
+enum AssetMovementRole {
+  PRINCIPAL
+  FEE
+}
+
 model PortfolioEvent {
   id                    String             @id @default(cuid())
   user                  User               @relation(fields: [userId], references: [id], onDelete: Restrict)
   userId                String
   kind                  PortfolioEventKind
   occurredAt            DateTime
+  actualValueUsd        Decimal?           @db.Decimal(65, 30)
   externalFlowUsd       Decimal?           @db.Decimal(65, 30)
   feeUsd                Decimal?           @db.Decimal(65, 30)
+  note                  String?            @db.VarChar(500)
   idempotencyKey        String             @db.VarChar(160)
   openingForUserAsset   UserAsset?         @relation(fields: [openingForUserAssetId, userId], references: [id, userId], onDelete: Restrict)
   openingForUserAssetId String?
   reversalOf            PortfolioEvent?    @relation("PortfolioEventReversal", fields: [reversalOfEventId, userId], references: [id, userId], onDelete: Restrict)
   reversalOfEventId     String?
   reversedBy            PortfolioEvent?    @relation("PortfolioEventReversal")
+  replacementFor        PortfolioEvent?    @relation("PortfolioEventReplacement", fields: [replacementForEventId, userId], references: [id, userId], onDelete: Restrict)
+  replacementForEventId String?
+  replacedBy            PortfolioEvent?    @relation("PortfolioEventReplacement")
   movements             AssetMovement[]
   createdAt             DateTime           @default(now())
 
@@ -76,21 +89,24 @@ model PortfolioEvent {
   @@unique([userId, idempotencyKey])
   @@unique([openingForUserAssetId, userId])
   @@unique([reversalOfEventId, userId])
+  @@unique([replacementForEventId, userId])
   @@index([userId, occurredAt, id])
 }
 
 model AssetMovement {
-  id               String         @id @default(cuid())
+  id               String            @id @default(cuid())
   userId           String
-  portfolioEvent   PortfolioEvent @relation(fields: [portfolioEventId, userId], references: [id, userId], onDelete: Restrict)
+  portfolioEvent   PortfolioEvent    @relation(fields: [portfolioEventId, userId], references: [id, userId], onDelete: Restrict)
   portfolioEventId String
-  userAsset        UserAsset      @relation(fields: [userAssetId, userId], references: [id, userId], onDelete: Restrict)
+  userAsset        UserAsset         @relation(fields: [userAssetId, userId], references: [id, userId], onDelete: Restrict)
   userAssetId      String
-  quantityDelta    Decimal        @db.Decimal(65, 30)
-  unitPriceUsd     Decimal?       @db.Decimal(65, 30)
-  priceEstimated   Boolean        @default(false)
-  createdAt        DateTime       @default(now())
+  role             AssetMovementRole @default(PRINCIPAL)
+  quantityDelta    Decimal           @db.Decimal(65, 30)
+  unitPriceUsd     Decimal?          @db.Decimal(65, 30)
+  priceEstimated   Boolean           @default(false)
+  createdAt        DateTime          @default(now())
 
+  @@unique([portfolioEventId, userAssetId, role])
   @@index([userId, userAssetId, createdAt, id])
   @@index([userId, portfolioEventId])
 }

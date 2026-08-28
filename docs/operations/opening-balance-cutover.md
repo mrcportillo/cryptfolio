@@ -18,6 +18,9 @@ database:
 ```bash
 CRYPTFOLIO_LEDGER_TEST_DATABASE_URL='postgresql://localhost/cryptfolio_ledger_test' \
   pnpm test:ledger-postgres
+
+CRYPTFOLIO_LEDGER_TEST_DATABASE_URL='postgresql://localhost/cryptfolio_ledger_test' \
+  pnpm test:transactions-postgres
 ```
 
 The harness never reads `.env.local`. It refuses non-loopback hosts and database
@@ -69,19 +72,22 @@ also restricts ordinary user deletion; adopted-account erasure requires a
 future explicit, audited workflow.
 
 Prisma 5.10 does not reliably surface an error raised only by a deferred
-constraint at interactive-transaction commit. The opening converter therefore
-executes `SET CONSTRAINTS ... IMMEDIATE` as an awaited query after its ledger
-writes and before it records adoption. Every later ledger writer must flush the
-two named opening-movement constraints the same way before returning its Prisma
-transaction callback.
+constraint at interactive-transaction commit. The opening converter and every
+manual ledger writer therefore execute an awaited `SET CONSTRAINTS ...
+IMMEDIATE` for both opening constraints, both manual-event constraints, and the
+nonnegative-timeline constraint before returning the Prisma transaction
+callback.
 
-Opening events write explicit zero flow and fees. Other ledger events preserve
-omitted monetary values as unknown `NULL`, never an implied zero. Correction is
-implemented later as an operation that writes a linked `REVERSAL` plus a
-replacement event of the original kind.
+Opening events write explicit zero flow and fees. Their movement role is
+`PRINCIPAL`; role is deliberately excluded from the v1 opening fingerprint, so
+the new default does not rewrite or invalidate cutover evidence. Other ledger
+events preserve omitted monetary values as unknown `NULL`, never an implied
+zero. Correction writes a linked `REVERSAL` plus a replacement event of the
+original kind.
 
-Stop here for the ledger-foundation deployment. The remaining steps belong to
-the manual-transaction cutover once all position writes are ledger-aware.
+Before proceeding, follow the manual-transaction deployment checks in
+[`manual-transactions-cutover.md`](manual-transactions-cutover.md). All legacy
+writers and the opening converter must use the same per-user advisory lock.
 
 ## 3. Dry-run the personal portfolio
 
@@ -109,11 +115,16 @@ pnpm ledger:opening-balances -- \
 ```
 
 Apply mode uses a serializable transaction, a transaction-scoped advisory lock,
-and a locked user row. It locks the user's legacy positions, checks the dry-run
-fingerprint, inserts one exact decimal opening movement per positive position,
-verifies all openings, and sets `ledgerAdoptedAt` last. Any error rolls back the
-whole conversion. Zero balances create no event. No JavaScript number is used
-for quantity conversion.
+and a tuple-version write lock on the user row. A concurrent raw legacy writer
+therefore forces the stale conversion attempt to abort and retry before it can
+adopt an incomplete snapshot. Apply locks the user's legacy positions, checks
+the dry-run fingerprint, inserts one exact decimal opening movement per
+positive position, verifies all openings, and sets `ledgerAdoptedAt` last. A
+database trigger validates that exact opening set during the initial adoption
+transition, then makes the non-null boundary permanently immutable. Any error
+rolls back the whole conversion. Zero balances create no event. No JavaScript
+number is used for quantity conversion. Database checks reject non-finite
+legacy amounts and all infinite cutover timestamps.
 
 ## 5. Verify and prove retry stability
 
@@ -133,17 +144,26 @@ report `alreadyApplied: true`. Then repeat verification with
 `-v expected_opening_fingerprint='<openingFingerprint>'`; any duplicate or
 changed event fails verification.
 
-Only after these checks pass may ledger reads be enabled. The valued USD
-baseline is created by the daily-valuation slice, not by this converter.
+Retry verification reads opening events and opening movements only. Valid buys,
+sells, swaps, or fees recorded after adoption do not change the v1 opening
+fingerprint or opening quantities. Alias-only edits use the immutable initial
+alias captured at adoption, so they do not invalidate cutover evidence either.
+Current-ledger health is a separate check in the manual-transaction runbook.
+
+Only after these checks pass may ledger reads be enabled. Post-adoption reads
+must derive quantities and history from exact movement sums; they must never
+fall back to `UserAsset.amount` or `AssetArchive`. The valued USD baseline is
+created by the daily-valuation slice, not by this converter.
 
 ## Rollback
 
 - Before conversion, roll application code back and leave the additive tables
   unused. Do not drop them during an incident.
 - A failed apply transaction leaves no openings and no adoption boundary.
-- After a successful conversion, disable ledger reads/writes and return to the
-  retained legacy projection while investigating. Do not delete events, clear
-  `ledgerAdoptedAt`, or edit financial history manually.
+- After a successful conversion, disable ledger reads/writes while
+  investigating. The database will not permit returning to the retained legacy
+  projection by clearing `ledgerAdoptedAt`; do not delete events or edit
+  financial history manually.
 - Restore the pre-cutover database snapshot only under an explicit incident
   decision. Otherwise repair forward with an audited migration or reversal.
 

@@ -391,11 +391,21 @@ if (!configuredUrl) {
               userId: "auth0|integration",
               kind: "BUY",
               occurredAt: new Date("2026-08-21T04:00:00.000Z"),
+              feeUsd: "0",
               idempotencyKey: "integration:unknown-money",
+              movements: {
+                create: {
+                  id: "movement-unknown-money",
+                  userAssetId: "integration-btc",
+                  role: "PRINCIPAL",
+                  quantityDelta: "0.01",
+                },
+              },
             },
           });
           assert.equal(unknownMoney.externalFlowUsd, null);
-          assert.equal(unknownMoney.feeUsd, null);
+          assert.equal(unknownMoney.actualValueUsd, null);
+          assert.equal(unknownMoney.feeUsd.toString(), "0");
           await assert.rejects(
             client.user.delete({ where: { id: "auth0|integration" } }),
             /foreign key constraint/i,
@@ -422,13 +432,26 @@ if (!configuredUrl) {
               amount: 0,
             },
           });
+          await client.user.update({
+            where: { id: "auth0|other" },
+            data: { ledgerAdoptedAt: new Date(adoptionAt) },
+          });
           await client.portfolioEvent.create({
             data: {
               id: "other-event",
               userId: "auth0|other",
               kind: "BUY",
               occurredAt: new Date("2026-08-21T04:05:00.000Z"),
+              feeUsd: "0",
               idempotencyKey: "other:event",
+              movements: {
+                create: {
+                  id: "other-movement",
+                  userAssetId: "other-btc",
+                  role: "PRINCIPAL",
+                  quantityDelta: "1",
+                },
+              },
             },
           });
 
@@ -510,18 +533,26 @@ if (!configuredUrl) {
               id: "valid-reversal",
               userId: "auth0|integration",
               kind: "REVERSAL",
-              occurredAt: new Date("2026-08-21T04:35:00.000Z"),
-              feeUsd: "-1",
+              occurredAt: new Date("2026-08-21T04:00:00.000Z"),
+              feeUsd: "0",
               idempotencyKey: "integration:valid-reversal",
               reversalOfEventId: "event-unknown-money",
+              movements: {
+                create: {
+                  id: "movement-valid-reversal",
+                  userAssetId: "integration-btc",
+                  role: "PRINCIPAL",
+                  quantityDelta: "-0.01",
+                },
+              },
             },
           });
-          assert.equal(reversal.feeUsd.toString(), "-1");
+          assert.equal(reversal.feeUsd.toString(), "0");
           await assert.rejects(
             client.portfolioEvent.delete({
               where: { id: "event-unknown-money" },
             }),
-            /foreign key constraint/i,
+            /immutable/i,
           );
         },
       );
@@ -634,9 +665,9 @@ if (!configuredUrl) {
               );
               await transaction.$executeRawUnsafe(
                 `INSERT INTO "AssetMovement" (
-                "id", "userId", "portfolioEventId", "userAssetId", "quantityDelta"
+                "id", "userId", "portfolioEventId", "userAssetId", "role", "quantityDelta"
                ) VALUES (
-                'flush-extra-movement', $1, $2, $3, 1
+                'flush-extra-movement', $1, $2, $3, 'FEE', -1
                )`,
                 options.userId,
                 event.id,
@@ -653,7 +684,7 @@ if (!configuredUrl) {
               expectedFingerprint: preview.legacyFingerprint,
               apply: true,
             }),
-            /requires exactly one movement/i,
+            /requires exactly one positive principal movement/i,
           );
           assert.equal(
             await client.portfolioEvent.count({
@@ -693,12 +724,12 @@ if (!configuredUrl) {
              'integration-duplicate'
            );
            INSERT INTO "AssetMovement" (
-             "id", "userId", "portfolioEventId", "userAssetId", "quantityDelta"
+             "id", "userId", "portfolioEventId", "userAssetId", "role", "quantityDelta"
            ) VALUES
              ('movement-duplicate-1', 'auth0|integration', 'event-duplicate',
-              'integration-duplicate', 1),
+              'integration-duplicate', 'PRINCIPAL', 1),
              ('movement-duplicate-2', 'auth0|integration', 'event-duplicate',
-              'integration-duplicate', 1);
+              'integration-duplicate', 'FEE', -1);
            COMMIT;`,
             `BEGIN;
            INSERT INTO "PortfolioEvent" (
@@ -721,8 +752,85 @@ if (!configuredUrl) {
           for (const sql of cases) {
             const result = psqlCommand(ledgerPsqlUrl, sql);
             assert.notEqual(result.status, 0);
-            assert.match(result.stderr, /requires exactly one movement/i);
+            assert.match(
+              result.stderr,
+              /requires exactly one positive principal movement/i,
+            );
           }
+        },
+      );
+
+      await t.test(
+        "opening retry ignores valid later ledger activity",
+        async () => {
+          await client.userAsset.update({
+            where: { id: "integration-btc" },
+            data: { assetName: "Integration BTC renamed" },
+          });
+          await client.userAsset.create({
+            data: {
+              id: "integration-sol-after-adoption",
+              userId: "auth0|integration",
+              assetId: "solana",
+              assetName: "Integration SOL after adoption",
+              ledgerInitialAssetName: "Integration SOL after adoption",
+              amount: 0,
+              date: new Date("2026-08-22T02:59:00.000Z"),
+              archivedAt: new Date("2026-08-22T02:59:00.000Z"),
+            },
+          });
+          await client.portfolioEvent.create({
+            data: {
+              id: "integration-later-buy",
+              userId: "auth0|integration",
+              kind: "BUY",
+              occurredAt: new Date("2026-08-22T03:00:00.000Z"),
+              actualValueUsd: null,
+              externalFlowUsd: null,
+              feeUsd: "0",
+              idempotencyKey: "11111111-1111-4111-8111-111111111111",
+              movements: {
+                create: {
+                  id: "integration-later-buy-movement",
+                  userAssetId: "integration-sol-after-adoption",
+                  role: "PRINCIPAL",
+                  quantityDelta: "0.01",
+                },
+              },
+            },
+          });
+
+          const retryDryRun = parseCli(
+            cli(ledgerPrismaUrl, [
+              "--user-id",
+              "auth0|integration",
+              "--adoption-at",
+              adoptionAt,
+            ]),
+            "opening dry run after activity",
+          );
+          const retryApply = parseCli(
+            cli(ledgerPrismaUrl, [
+              "--user-id",
+              "auth0|integration",
+              "--apply",
+              "--adoption-at",
+              adoptionAt,
+              "--expected-fingerprint",
+              dryRun.legacyFingerprint,
+            ]),
+            "opening apply retry after activity",
+          );
+          assert.equal(retryDryRun.alreadyAdopted, true);
+          assert.equal(
+            retryDryRun.openingFingerprint,
+            applied.openingFingerprint,
+          );
+          assert.equal(retryApply.alreadyApplied, true);
+          assert.equal(
+            retryApply.openingFingerprint,
+            applied.openingFingerprint,
+          );
         },
       );
 

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Pencil } from "lucide-react";
+import { formatExactDecimal } from "@/lib/portfolio-transaction-ui";
 
 type AssetNameProps = {
   name: string;
@@ -36,7 +37,9 @@ type AssetPillProps = {
 
 export default function AssetPill({ asset, onEdit }: AssetPillProps) {
   const totalValue =
-    asset.price == null ? "—" : formatNumber(asset.amount * asset.price, 2);
+    asset.approximateMarketValue == null
+      ? "—"
+      : formatNumber(asset.approximateMarketValue, 2);
 
   return (
     <Card className="relative w-full border-0 bg-gradient-to-br from-primary-200 via-primary-400 to-primary-700 text-primary-50 shadow-lg sm:w-[320px] lg:w-[360px]">
@@ -71,7 +74,10 @@ export default function AssetPill({ asset, onEdit }: AssetPillProps) {
         </CardHeader>
         <CardContent className="space-y-2 pt-0">
           <AssetAttribute label="Coin" value={asset.coinName} />
-          <AssetAttribute label="Amount" value={formatNumber(asset.amount)} />
+          <AssetAttribute
+            label="Amount"
+            value={formatExactDecimal(asset.amount)}
+          />
           <AssetAttribute
             label="Price per coin"
             value={asset.price == null ? "—" : `$${formatNumber(asset.price)}`}

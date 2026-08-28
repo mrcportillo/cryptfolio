@@ -2,7 +2,7 @@
 title: "feat: Add personal portfolio intelligence"
 type: feat
 date: 2026-08-20
-status: ready
+status: in_progress
 adr: ../adr/0001-transaction-ledger-and-portfolio-valuation.md
 ---
 
@@ -44,7 +44,7 @@ Cryptfolio can answer all of the following without treating a balance update as 
 ### Included
 
 - Opening-balance cutover with no backfill.
-- Manual opening, buy, sell, transfer, swap, and fee events, plus a correction operation that writes a reversal and replacement.
+- Operator-created opening balances plus user-recorded buy, sell, transfer, swap, and fee events, with a correction operation that writes a reversal and replacement.
 - Derived holdings and current worth.
 - Stored daily snapshots plus live current valuation.
 - Cash-flow-adjusted total and per-coin market movement.
@@ -160,14 +160,14 @@ If conversion is retried, unique migration markers prevent duplicate opening eve
 2. The server validates authentication, ownership, decimal values, timestamp, and resulting non-negative quantities.
 3. The event and all movements are written atomically.
 4. Holdings and current worth re-render from the ledger.
-5. A price inferred from CoinGecko is visibly marked estimated.
+5. If the actual USD total is omitted, the event remains explicitly unvalued; this slice never invents an execution price from CoinGecko.
 
 Swaps create both outgoing and incoming movements in one atomic event. Partial failure rolls back the whole swap.
 
 ### Correct a transaction
 
 1. The user opens a ledger event and chooses correct or reverse.
-2. Cryptfolio shows the downstream quantity effect before confirmation.
+2. Cryptfolio explains that the original remains immutable and that a reversal can be rejected when later activity relies on its balance.
 3. The server creates a reversal and, when correcting, a replacement event.
 4. Affected snapshots and reports are marked stale and recalculated.
 
@@ -262,10 +262,10 @@ Add decimal ledger models, an idempotent opening-balance cutover, and verificati
 
 **Acceptance criteria**
 
-- Each positive current holding produces exactly one opening event.
-- Derived post-cutover quantities exactly match the representable current amounts.
-- Retrying the conversion creates no duplicates.
-- No performance is shown before adoption.
+- [x] Each positive current holding produces exactly one opening event.
+- [x] Derived post-cutover quantities exactly match the representable current amounts.
+- [x] Retrying the conversion creates no duplicates.
+- [x] No performance is shown before adoption.
 
 ### 3. Record manual transactions and derive holdings
 
@@ -273,10 +273,10 @@ Replace direct balance edits with end-to-end buy, sell, transfer, swap, fee, rev
 
 **Acceptance criteria**
 
-- All event types update derived holdings atomically.
-- Negative resulting quantities are rejected.
-- Swaps roll back completely if either movement fails.
-- Positions with history are archived rather than deleted.
+- [x] All event types update derived holdings atomically.
+- [x] Negative resulting quantities are rejected.
+- [x] Swaps roll back completely if either movement fails.
+- [x] Positions with history are archived rather than deleted.
 
 ### 4. Track daily valuation and market movement
 

@@ -27,7 +27,7 @@ At rollout, create one `OPENING_BALANCE` event for every existing `UserAsset` wi
 
 Opening balances establish the first performance baseline. They are not deposits, gains, or historical purchases. Reports must not claim performance before this boundary.
 
-The conversion must be idempotent and verified before the legacy amount or archive fields are retired. Existing `AssetArchive` rows remain read-only during the transition and are not converted into transactions. The additive schema and dry-run tooling ship before conversion; apply mode is used only after transaction-aware writes replace the legacy balance mutation path, or during an explicit write freeze.
+The conversion must be idempotent and verified before the legacy amount or archive fields are retired. Existing `AssetArchive` rows remain read-only during the transition and are not converted into transactions. The additive schema and dry-run tooling ship before conversion; apply mode is used only after transaction-aware writes replace the legacy balance mutation path, or during an explicit write freeze. PostgreSQL validates the exact opening set when `ledgerAdoptedAt` first changes from `NULL`, then makes that boundary immutable.
 
 The adoption boundary and exact opening quantities are ledger data. The USD-valued baseline snapshot is a separate valuation concern and is introduced with daily valuation; opening conversion must not invent prices.
 
@@ -46,9 +46,26 @@ Supported event intents are:
 - `FEE`
 - `REVERSAL`
 
-A swap contains at least two asset movements under one event. A fee paid in a tracked coin is another negative movement on the same event. Correction is an operation, not an event kind: it creates a durable `REVERSAL` linked to the incorrect event, then creates a replacement event of the original intent. The replacement link and cross-event semantic validation belong to the manual-transaction service.
+A swap contains exactly two principal movements under one event. A fee paid in a tracked coin is another negative movement on the same event. Correction is an operation, not an event kind: it creates a durable `REVERSAL` linked to the incorrect event, then creates a replacement event of the original intent. The replacement link and cross-event semantic validation belong to the manual-transaction service.
 
-Quantities and money use database decimal types, never binary floating point. A transaction cannot leave a position below zero unless a future ADR explicitly introduces borrowing or short positions.
+Movement roles distinguish principal quantity from a tracked-coin fee. Manual forms accept positive magnitudes only; the authenticated server assigns movement and external-flow signs. A bounded note and the optional actual USD total live on the event, while fiat itself remains outside the position ledger.
+
+Inbound events may atomically create a deterministic zero-seeded position, and
+correction retries reuse the same position identity. Outgoing, swap-source, and
+fee legs cannot create positions. Manual timestamp strings require an explicit
+timezone, must name a real calendar instant, and are normalized to UTC. Each
+ledger position retains its immutable initial alias for retry and cutover
+evidence while its display alias remains editable.
+
+Quantities and money use database decimal types, never binary floating point.
+Database constraints reject non-finite numeric values and infinite ledger or
+lifecycle timestamps. A transaction cannot leave a position below zero unless
+a future ADR explicitly introduces borrowing or short positions.
+Database decimal values cross the application boundary as canonical plain
+strings, never exponent notation. Asset, holding, history, and transaction read
+models keep those strings exact; conversion to JavaScript number is isolated to
+the external market-price and chart-rendering boundary where approximation is
+explicit.
 
 ### 3. Track the portfolio boundary separately from trades
 
@@ -62,6 +79,14 @@ Each event records its USD external-flow effect:
 
 For manual events, the user may enter the actual USD total and fee. Omitted monetary values remain `NULL` and mean unknown, never zero. If Cryptfolio later estimates a value from CoinGecko, it must persist and label that estimate explicitly rather than silently changing unknown to zero.
 
+Manual writes use serializable transactions with bounded retry and the same
+per-user advisory lock as opening conversion. Application and raw database
+writers also create a shared owner-row tuple version before writing ledger or
+legacy state. A stale Serializable snapshot must therefore abort and retry
+rather than crossing a raw READ COMMITTED writer. Together these controls make
+the adoption marker a hard read/write boundary: legacy writers cannot slip
+between the opening fingerprint check and adoption.
+
 ### 4. Use hybrid valuation history
 
 USD is the initial and only reporting currency. The personal reporting timezone is `America/Argentina/Salta`.
@@ -73,7 +98,7 @@ Cryptfolio stores one immutable daily portfolio snapshot for each local calendar
 - Authenticated independently from interactive user sessions.
 - Calculated against a fixed cutoff so a concurrent transaction cannot be half-included.
 
-The current dashboard point uses live CoinGecko prices and derived current holdings. If a scheduled snapshot is missing, a repair path reconstructs it from the ledger and CoinGecko historical prices, marking repaired price lines as estimated.
+The current dashboard point uses live CoinGecko prices and derived current holdings. Its asset page, coin IDs, holdings, and adoption marker come from one repeatable-read database snapshot. If a scheduled snapshot is missing, a repair path reconstructs it from the ledger and CoinGecko historical prices, marking repaired price lines as estimated.
 
 This hybrid keeps historical reports stable while allowing the latest worth to move without any asset update.
 

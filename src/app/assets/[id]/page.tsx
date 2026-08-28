@@ -14,6 +14,13 @@ import AssetEvolutionGraph from "@/components/AssetEvolutionGraph";
 import type { CoinDetail } from "@/services/coin/types";
 import type { PropsWithChildren } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { NotebookPen } from "lucide-react";
+import Link from "next/link";
+import { listOwnedTransactionPositions } from "@/services/portfolio-transactions/queries";
+import prisma from "@/services/prisma/client";
+import { formatExactDecimal } from "@/lib/portfolio-transaction-ui";
+import { approximateMarketValue } from "@/services/coin/portfolio";
 
 type EvolutionDotProps = {
   evolutionValue?: number;
@@ -51,7 +58,10 @@ type AssetPageProps = {
 export default async function Asset({ params }: AssetPageProps) {
   const { id } = await params;
   const user = await requireCurrentUser();
-  const asset = await getAssetById(id, user.id);
+  const [asset, catalog] = await Promise.all([
+    getAssetById(id, user.id),
+    listOwnedTransactionPositions(prisma, user.id),
+  ]);
 
   if (!asset) {
     notFound();
@@ -65,6 +75,7 @@ export default async function Asset({ params }: AssetPageProps) {
   }
 
   const currentPrice = assetStatus?.market_data?.current_price?.usd;
+  const currentValue = approximateMarketValue(asset.amount, currentPrice);
   const removeAsset = async () => {
     "use server";
     await remove(id);
@@ -77,7 +88,18 @@ export default async function Asset({ params }: AssetPageProps) {
           {asset.assetName || "Asset detail"}
         </h1>
         <div className="ml-auto">
-          <RemoveButton remove={removeAsset}>Remove</RemoveButton>
+          {catalog.ledgerAdopted ? (
+            <Button asChild>
+              <Link
+                href={`/transactions/new?positionId=${encodeURIComponent(id)}`}
+              >
+                <NotebookPen className="mr-2 h-4 w-4" aria-hidden="true" />
+                Record activity
+              </Link>
+            </Button>
+          ) : (
+            <RemoveButton remove={removeAsset}>Remove</RemoveButton>
+          )}
         </div>
       </div>
       <div className="my-4">
@@ -110,7 +132,7 @@ export default async function Asset({ params }: AssetPageProps) {
                   <div>
                     <span>Holding: </span>
                     <span className="text-foreground">
-                      {formatNumber(asset.amount)}
+                      {formatExactDecimal(asset.amount)}
                     </span>
                   </div>
                   <div>
@@ -124,9 +146,9 @@ export default async function Asset({ params }: AssetPageProps) {
                   <div>
                     <span>Holding value: </span>
                     <span className="text-foreground">
-                      {currentPrice == null
+                      {currentValue == null
                         ? "Unavailable"
-                        : formatCurrency(asset.amount * currentPrice)}
+                        : formatCurrency(currentValue)}
                     </span>
                   </div>
                   <div>

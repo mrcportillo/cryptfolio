@@ -3,6 +3,10 @@ import list from "@/services/coin/list";
 import type { CoinListItem } from "@/services/coin/types";
 import type { CoinOption } from "@/types/coin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireCurrentUser } from "@/lib/auth";
+import { listOwnedTransactionPositions } from "@/services/portfolio-transactions/queries";
+import prisma from "@/services/prisma/client";
+import { redirect } from "next/navigation";
 
 async function getCoinOptions(): Promise<CoinOption[]> {
   const coinList: CoinListItem[] = await list(100);
@@ -13,6 +17,12 @@ async function getCoinOptions(): Promise<CoinOption[]> {
 }
 
 export default async function NewAsset() {
+  const user = await requireCurrentUser();
+  const catalog = await listOwnedTransactionPositions(prisma, user.id);
+  if (catalog.ledgerAdopted) {
+    redirect("/transactions/new?kind=TRANSFER_IN&position=new");
+  }
+
   let coinOptions: CoinOption[] = [];
   let loadError: string | undefined;
 

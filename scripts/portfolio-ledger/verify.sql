@@ -42,6 +42,7 @@ DECLARE
   function_mismatches integer;
   ownership_mismatches integer;
   event_kinds text[];
+  movement_roles text[];
 BEGIN
   IF NOT has_schema_privilege(current_user, current_schema(), 'USAGE')
      OR NOT has_schema_privilege(current_user, current_schema(), 'CREATE') THEN
@@ -96,6 +97,8 @@ BEGIN
       ('UserAsset', 4, 'assetName', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('UserAsset', 5, 'amount', 'float8', 'NO', NULL::text, 53, NULL::integer, NULL::integer, NULL::integer),
       ('UserAsset', 6, 'date', 'timestamp', 'NO', 'CURRENT_TIMESTAMP', NULL::integer, NULL::integer, NULL::integer, 3),
+      ('UserAsset', 7, 'archivedAt', 'timestamp', 'YES', NULL::text, NULL::integer, NULL::integer, NULL::integer, 3),
+      ('UserAsset', 8, 'ledgerInitialAssetName', 'varchar', 'YES', NULL::text, NULL::integer, NULL::integer, 80, NULL::integer),
       ('AssetArchive', 1, 'id', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('AssetArchive', 2, 'userAssetId', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('AssetArchive', 3, 'amount', 'float8', 'NO', NULL::text, 53, NULL::integer, NULL::integer, NULL::integer),
@@ -110,6 +113,9 @@ BEGIN
       ('PortfolioEvent', 8, 'openingForUserAssetId', 'text', 'YES', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('PortfolioEvent', 9, 'reversalOfEventId', 'text', 'YES', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('PortfolioEvent', 10, 'createdAt', 'timestamp', 'NO', 'CURRENT_TIMESTAMP', NULL::integer, NULL::integer, NULL::integer, 3),
+      ('PortfolioEvent', 11, 'actualValueUsd', 'numeric', 'YES', NULL::text, 65, 30, NULL::integer, NULL::integer),
+      ('PortfolioEvent', 12, 'note', 'varchar', 'YES', NULL::text, NULL::integer, NULL::integer, 500, NULL::integer),
+      ('PortfolioEvent', 13, 'replacementForEventId', 'text', 'YES', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('AssetMovement', 1, 'id', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('AssetMovement', 2, 'userId', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('AssetMovement', 3, 'portfolioEventId', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
@@ -117,7 +123,8 @@ BEGIN
       ('AssetMovement', 5, 'quantityDelta', 'numeric', 'NO', NULL::text, 65, 30, NULL::integer, NULL::integer),
       ('AssetMovement', 6, 'unitPriceUsd', 'numeric', 'YES', NULL::text, 65, 30, NULL::integer, NULL::integer),
       ('AssetMovement', 7, 'priceEstimated', 'bool', 'NO', 'false', NULL::integer, NULL::integer, NULL::integer, NULL::integer),
-      ('AssetMovement', 8, 'createdAt', 'timestamp', 'NO', 'CURRENT_TIMESTAMP', NULL::integer, NULL::integer, NULL::integer, 3)
+      ('AssetMovement', 8, 'createdAt', 'timestamp', 'NO', 'CURRENT_TIMESTAMP', NULL::integer, NULL::integer, NULL::integer, 3),
+      ('AssetMovement', 9, 'role', 'AssetMovementRole', 'NO', '''PRINCIPAL''::"AssetMovementRole"', NULL::integer, NULL::integer, NULL::integer, NULL::integer)
   ), actual AS (
     SELECT
       column_record.table_name,
@@ -165,6 +172,7 @@ BEGIN
       ('UserAsset_userId_date_idx', 'UserAsset', false, false, false, ARRAY['userId', 'date']::text[], 'btree', true, true, true, true),
       ('UserAsset_assetId_idx', 'UserAsset', false, false, false, ARRAY['assetId']::text[], 'btree', true, true, true, true),
       ('UserAsset_id_userId_key', 'UserAsset', true, false, false, ARRAY['id', 'userId']::text[], 'btree', true, true, true, true),
+      ('UserAsset_userId_archivedAt_date_idx', 'UserAsset', false, false, false, ARRAY['userId', 'archivedAt', 'date']::text[], 'btree', true, true, true, true),
       ('AssetArchive_pkey', 'AssetArchive', true, true, false, ARRAY['id']::text[], 'btree', true, true, true, true),
       ('AssetArchive_userAssetId_date_idx', 'AssetArchive', false, false, false, ARRAY['userAssetId', 'date']::text[], 'btree', true, true, true, true),
       ('PortfolioEvent_pkey', 'PortfolioEvent', true, true, false, ARRAY['id']::text[], 'btree', true, true, true, true),
@@ -172,10 +180,12 @@ BEGIN
       ('PortfolioEvent_userId_idempotencyKey_key', 'PortfolioEvent', true, false, false, ARRAY['userId', 'idempotencyKey']::text[], 'btree', true, true, true, true),
       ('PortfolioEvent_openingForUserAssetId_userId_key', 'PortfolioEvent', true, false, false, ARRAY['openingForUserAssetId', 'userId']::text[], 'btree', true, true, true, true),
       ('PortfolioEvent_reversalOfEventId_userId_key', 'PortfolioEvent', true, false, false, ARRAY['reversalOfEventId', 'userId']::text[], 'btree', true, true, true, true),
+      ('PortfolioEvent_replacementForEventId_userId_key', 'PortfolioEvent', true, false, false, ARRAY['replacementForEventId', 'userId']::text[], 'btree', true, true, true, true),
       ('PortfolioEvent_userId_occurredAt_id_idx', 'PortfolioEvent', false, false, false, ARRAY['userId', 'occurredAt', 'id']::text[], 'btree', true, true, true, true),
       ('AssetMovement_pkey', 'AssetMovement', true, true, false, ARRAY['id']::text[], 'btree', true, true, true, true),
       ('AssetMovement_userId_userAssetId_createdAt_id_idx', 'AssetMovement', false, false, false, ARRAY['userId', 'userAssetId', 'createdAt', 'id']::text[], 'btree', true, true, true, true),
-      ('AssetMovement_userId_portfolioEventId_idx', 'AssetMovement', false, false, false, ARRAY['userId', 'portfolioEventId']::text[], 'btree', true, true, true, true)
+      ('AssetMovement_userId_portfolioEventId_idx', 'AssetMovement', false, false, false, ARRAY['userId', 'portfolioEventId']::text[], 'btree', true, true, true, true),
+      ('AssetMovement_portfolioEventId_userAssetId_role_key', 'AssetMovement', true, false, false, ARRAY['portfolioEventId', 'userAssetId', 'role']::text[], 'btree', true, true, true, true)
   ), actual AS (
     SELECT
       index_class.relname AS index_name,
@@ -226,26 +236,49 @@ BEGIN
   WITH expected(table_name, constraint_name, definition) AS (
     VALUES
       ('User', 'User_pkey', 'PRIMARY KEY (id)'),
+      ('User', 'User_finite_ledger_adopted_at_check', 'CHECK ("ledgerAdoptedAt" IS NULL OR isfinite("ledgerAdoptedAt"))'),
       ('UserAsset', 'UserAsset_pkey', 'PRIMARY KEY (id)'),
       ('UserAsset', 'UserAsset_userId_fkey', 'FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE'),
+      ('UserAsset', 'UserAsset_finite_amount_check', 'CHECK (lower(amount::text) <> ALL (ARRAY[''nan''::text, ''infinity''::text, ''-infinity''::text]))'),
+      ('UserAsset', 'UserAsset_finite_date_check', 'CHECK (isfinite(date))'),
+      ('UserAsset', 'UserAsset_finite_archived_at_check', 'CHECK ("archivedAt" IS NULL OR isfinite("archivedAt"))'),
       ('AssetArchive', 'AssetArchive_pkey', 'PRIMARY KEY (id)'),
       ('AssetArchive', 'AssetArchive_userAssetId_fkey', 'FOREIGN KEY ("userAssetId") REFERENCES "UserAsset"(id) ON UPDATE CASCADE ON DELETE CASCADE'),
+      ('AssetArchive', 'AssetArchive_finite_amount_check', 'CHECK (lower(amount::text) <> ALL (ARRAY[''nan''::text, ''infinity''::text, ''-infinity''::text]))'),
+      ('AssetArchive', 'AssetArchive_finite_date_check', 'CHECK (isfinite(date))'),
       ('PortfolioEvent', 'PortfolioEvent_pkey', 'PRIMARY KEY (id)'),
       ('PortfolioEvent', 'PortfolioEvent_opening_shape_check', 'CHECK (kind = ''OPENING_BALANCE''::"PortfolioEventKind" AND "openingForUserAssetId" IS NOT NULL OR kind <> ''OPENING_BALANCE''::"PortfolioEventKind" AND "openingForUserAssetId" IS NULL)'),
       ('PortfolioEvent', 'PortfolioEvent_opening_zero_flow_check', 'CHECK (kind <> ''OPENING_BALANCE''::"PortfolioEventKind" OR "externalFlowUsd" IS NOT NULL AND "externalFlowUsd" = 0::numeric AND "feeUsd" IS NOT NULL AND "feeUsd" = 0::numeric)'),
       ('PortfolioEvent', 'PortfolioEvent_reversal_shape_check', 'CHECK (kind = ''REVERSAL''::"PortfolioEventKind" AND "reversalOfEventId" IS NOT NULL OR kind <> ''REVERSAL''::"PortfolioEventKind" AND "reversalOfEventId" IS NULL)'),
       ('PortfolioEvent', 'PortfolioEvent_fee_sign_check', 'CHECK (kind = ''REVERSAL''::"PortfolioEventKind" OR "feeUsd" IS NULL OR "feeUsd" >= 0::numeric)'),
       ('PortfolioEvent', 'PortfolioEvent_not_self_reversal_check', 'CHECK ("reversalOfEventId" IS NULL OR id <> "reversalOfEventId")'),
+      ('PortfolioEvent', 'PortfolioEvent_actual_value_sign_check', 'CHECK ("actualValueUsd" IS NULL OR kind = ''REVERSAL''::"PortfolioEventKind" AND "actualValueUsd" <= 0::numeric OR kind <> ''REVERSAL''::"PortfolioEventKind" AND "actualValueUsd" > 0::numeric)'),
+      ('PortfolioEvent', 'PortfolioEvent_replacement_shape_check', 'CHECK ("replacementForEventId" IS NULL OR (kind <> ALL (ARRAY[''OPENING_BALANCE''::"PortfolioEventKind", ''REVERSAL''::"PortfolioEventKind"])))'),
+      ('PortfolioEvent', 'PortfolioEvent_not_self_replacement_check', 'CHECK ("replacementForEventId" IS NULL OR id <> "replacementForEventId")'),
+      ('PortfolioEvent', 'PortfolioEvent_note_length_check', 'CHECK (note IS NULL OR char_length(note::text) <= 500)'),
+      ('PortfolioEvent', 'PortfolioEvent_opening_actual_value_check', 'CHECK (kind <> ''OPENING_BALANCE''::"PortfolioEventKind" OR "actualValueUsd" IS NULL)'),
+      ('PortfolioEvent', 'PortfolioEvent_finite_actual_value_check', 'CHECK ("actualValueUsd" IS NULL OR (lower("actualValueUsd"::text) <> ALL (ARRAY[''nan''::text, ''infinity''::text, ''-infinity''::text])))'),
+      ('PortfolioEvent', 'PortfolioEvent_finite_external_flow_check', 'CHECK ("externalFlowUsd" IS NULL OR (lower("externalFlowUsd"::text) <> ALL (ARRAY[''nan''::text, ''infinity''::text, ''-infinity''::text])))'),
+      ('PortfolioEvent', 'PortfolioEvent_finite_fee_check', 'CHECK ("feeUsd" IS NULL OR (lower("feeUsd"::text) <> ALL (ARRAY[''nan''::text, ''infinity''::text, ''-infinity''::text])))'),
+      ('PortfolioEvent', 'PortfolioEvent_finite_occurred_at_check', 'CHECK (isfinite("occurredAt"))'),
+      ('PortfolioEvent', 'PortfolioEvent_finite_created_at_check', 'CHECK (isfinite("createdAt"))'),
       ('PortfolioEvent', 'PortfolioEvent_userId_fkey', 'FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE RESTRICT'),
       ('PortfolioEvent', 'PortfolioEvent_openingForUserAssetId_userId_fkey', 'FOREIGN KEY ("openingForUserAssetId", "userId") REFERENCES "UserAsset"(id, "userId") ON UPDATE CASCADE ON DELETE RESTRICT'),
       ('PortfolioEvent', 'PortfolioEvent_reversalOfEventId_userId_fkey', 'FOREIGN KEY ("reversalOfEventId", "userId") REFERENCES "PortfolioEvent"(id, "userId") ON UPDATE CASCADE ON DELETE RESTRICT'),
+      ('PortfolioEvent', 'PortfolioEvent_replacementForEventId_userId_fkey', 'FOREIGN KEY ("replacementForEventId", "userId") REFERENCES "PortfolioEvent"(id, "userId") ON UPDATE CASCADE ON DELETE RESTRICT'),
       ('PortfolioEvent', 'PortfolioEvent_exactly_one_opening_movement_check', 'TRIGGER DEFERRABLE INITIALLY DEFERRED'),
+      ('PortfolioEvent', 'PortfolioEvent_manual_semantics_check', 'TRIGGER DEFERRABLE INITIALLY DEFERRED'),
       ('AssetMovement', 'AssetMovement_pkey', 'PRIMARY KEY (id)'),
       ('AssetMovement', 'AssetMovement_nonzero_quantity_check', 'CHECK ("quantityDelta" <> 0::numeric)'),
       ('AssetMovement', 'AssetMovement_positive_unit_price_check', 'CHECK ("unitPriceUsd" IS NULL OR "unitPriceUsd" > 0::numeric)'),
+      ('AssetMovement', 'AssetMovement_finite_quantity_check', 'CHECK (lower("quantityDelta"::text) <> ALL (ARRAY[''nan''::text, ''infinity''::text, ''-infinity''::text]))'),
+      ('AssetMovement', 'AssetMovement_finite_unit_price_check', 'CHECK ("unitPriceUsd" IS NULL OR (lower("unitPriceUsd"::text) <> ALL (ARRAY[''nan''::text, ''infinity''::text, ''-infinity''::text])))'),
+      ('AssetMovement', 'AssetMovement_finite_created_at_check', 'CHECK (isfinite("createdAt"))'),
       ('AssetMovement', 'AssetMovement_portfolioEventId_userId_fkey', 'FOREIGN KEY ("portfolioEventId", "userId") REFERENCES "PortfolioEvent"(id, "userId") ON UPDATE CASCADE ON DELETE RESTRICT'),
       ('AssetMovement', 'AssetMovement_userAssetId_userId_fkey', 'FOREIGN KEY ("userAssetId", "userId") REFERENCES "UserAsset"(id, "userId") ON UPDATE CASCADE ON DELETE RESTRICT'),
-      ('AssetMovement', 'AssetMovement_exactly_one_opening_movement_check', 'TRIGGER DEFERRABLE INITIALLY DEFERRED')
+      ('AssetMovement', 'AssetMovement_exactly_one_opening_movement_check', 'TRIGGER DEFERRABLE INITIALLY DEFERRED'),
+      ('AssetMovement', 'AssetMovement_manual_semantics_check', 'TRIGGER DEFERRABLE INITIALLY DEFERRED'),
+      ('AssetMovement', 'AssetMovement_nonnegative_timeline_check', 'TRIGGER DEFERRABLE INITIALLY DEFERRED')
   ), actual AS (
     SELECT
       table_record.relname AS table_name,
@@ -290,7 +323,16 @@ BEGIN
   ) AS (
     VALUES
       ('PortfolioEvent_exactly_one_opening_movement_check', 'PortfolioEvent', true, true, 'O'::"char", 'enforce_opening_event_movement', true, true, true, true, true, false, false, true, 0, 'CREATE CONSTRAINT TRIGGER "PortfolioEvent_exactly_one_opening_movement_check" AFTER INSERT OR DELETE OR UPDATE ON "PortfolioEvent" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_opening_event_movement()'),
-      ('AssetMovement_exactly_one_opening_movement_check', 'AssetMovement', true, true, 'O'::"char", 'enforce_opening_event_movement', true, true, true, true, true, false, false, true, 0, 'CREATE CONSTRAINT TRIGGER "AssetMovement_exactly_one_opening_movement_check" AFTER INSERT OR DELETE OR UPDATE ON "AssetMovement" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_opening_event_movement()')
+      ('AssetMovement_exactly_one_opening_movement_check', 'AssetMovement', true, true, 'O'::"char", 'enforce_opening_event_movement', true, true, true, true, true, false, false, true, 0, 'CREATE CONSTRAINT TRIGGER "AssetMovement_exactly_one_opening_movement_check" AFTER INSERT OR DELETE OR UPDATE ON "AssetMovement" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_opening_event_movement()'),
+      ('PortfolioEvent_manual_semantics_check', 'PortfolioEvent', true, true, 'O'::"char", 'enforce_manual_event_semantics', true, true, true, false, false, false, false, true, 0, 'CREATE CONSTRAINT TRIGGER "PortfolioEvent_manual_semantics_check" AFTER INSERT ON "PortfolioEvent" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_manual_event_semantics()'),
+      ('AssetMovement_manual_semantics_check', 'AssetMovement', true, true, 'O'::"char", 'enforce_manual_event_semantics', true, true, true, false, false, false, false, true, 0, 'CREATE CONSTRAINT TRIGGER "AssetMovement_manual_semantics_check" AFTER INSERT ON "AssetMovement" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_manual_event_semantics()'),
+      ('AssetMovement_nonnegative_timeline_check', 'AssetMovement', true, true, 'O'::"char", 'enforce_nonnegative_asset_timeline', true, true, true, false, false, false, false, true, 0, 'CREATE CONSTRAINT TRIGGER "AssetMovement_nonnegative_timeline_check" AFTER INSERT ON "AssetMovement" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_nonnegative_asset_timeline()'),
+      ('AssetMovement_owner_write_serialization', 'AssetMovement', false, false, 'O'::"char", 'serialize_ledger_owner_write', true, false, true, false, false, false, false, true, 0, 'CREATE TRIGGER "AssetMovement_owner_write_serialization" BEFORE INSERT ON "AssetMovement" FOR EACH ROW EXECUTE FUNCTION serialize_ledger_owner_write()'),
+      ('PortfolioEvent_immutable', 'PortfolioEvent', false, false, 'O'::"char", 'protect_immutable_ledger_record', true, false, false, true, true, false, false, true, 0, 'CREATE TRIGGER "PortfolioEvent_immutable" BEFORE DELETE OR UPDATE ON "PortfolioEvent" FOR EACH ROW EXECUTE FUNCTION protect_immutable_ledger_record()'),
+      ('AssetMovement_immutable', 'AssetMovement', false, false, 'O'::"char", 'protect_immutable_ledger_record', true, false, false, true, true, false, false, true, 0, 'CREATE TRIGGER "AssetMovement_immutable" BEFORE DELETE OR UPDATE ON "AssetMovement" FOR EACH ROW EXECUTE FUNCTION protect_immutable_ledger_record()'),
+      ('User_ledger_adoption_boundary_guard', 'User', false, false, 'O'::"char", 'guard_ledger_adoption_boundary', true, false, true, true, false, false, false, true, 0, 'CREATE TRIGGER "User_ledger_adoption_boundary_guard" BEFORE INSERT OR UPDATE ON "User" FOR EACH ROW EXECUTE FUNCTION guard_ledger_adoption_boundary()'),
+      ('UserAsset_adopted_legacy_fields_frozen', 'UserAsset', false, false, 'O'::"char", 'protect_adopted_legacy_position', true, false, true, true, true, false, false, true, 0, 'CREATE TRIGGER "UserAsset_adopted_legacy_fields_frozen" BEFORE INSERT OR DELETE OR UPDATE ON "UserAsset" FOR EACH ROW EXECUTE FUNCTION protect_adopted_legacy_position()'),
+      ('AssetArchive_adopted_history_frozen', 'AssetArchive', false, false, 'O'::"char", 'protect_adopted_asset_archive', true, false, true, true, true, false, false, true, 0, 'CREATE TRIGGER "AssetArchive_adopted_history_frozen" BEFORE INSERT OR DELETE OR UPDATE ON "AssetArchive" FOR EACH ROW EXECUTE FUNCTION protect_adopted_asset_archive()')
   ), actual AS (
     SELECT
       trigger_record.tgname AS trigger_name,
@@ -319,7 +361,9 @@ BEGIN
     JOIN pg_namespace namespace_record ON namespace_record.oid = table_record.relnamespace
     JOIN pg_proc procedure_record ON procedure_record.oid = trigger_record.tgfoid
     WHERE namespace_record.nspname = current_schema()
-      AND table_record.relname IN ('PortfolioEvent', 'AssetMovement')
+      AND table_record.relname IN (
+        'User', 'UserAsset', 'AssetArchive', 'PortfolioEvent', 'AssetMovement'
+      )
       AND NOT trigger_record.tgisinternal
   ), differences AS (
     (SELECT * FROM expected EXCEPT SELECT * FROM actual)
@@ -340,8 +384,18 @@ BEGIN
     source_md5
   ) AS (
     VALUES
-      ('assert_opening_event_movement', 'target_event_id text', 'void', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '3fe089db7261acf6983c4eb5353655ab'),
-      ('enforce_opening_event_movement', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '8c5ca354321de23c6e57f8ed4f24ff46')
+      ('assert_opening_event_movement', 'target_event_id text', 'void', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '460a1f024cfa3de5c7bc789cd576f35b'),
+      ('enforce_opening_event_movement', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '8c5ca354321de23c6e57f8ed4f24ff46'),
+      ('assert_ledger_adoption_boundary', 'target_user_id text, target_adoption_at timestamp without time zone', 'void', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '9c4d1ee2ae87827829eaa2da5eac7271'),
+      ('guard_ledger_adoption_boundary', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '356d8fc06a7a4c687dfd62ad5bb72fe7'),
+      ('assert_manual_event_semantics', 'target_event_id text', 'void', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], 'c1cc6ab46d0b7055de6c797ccdea54c6'),
+      ('enforce_manual_event_semantics', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], 'dff7561857f192591513045f692e4d55'),
+      ('assert_nonnegative_asset_timeline', 'target_user_id text, target_user_asset_id text', 'void', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], 'a8ed8bdbc1b48b79147ae791d346d148'),
+      ('enforce_nonnegative_asset_timeline', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '25a52e747bd6fc625d4abf67c1be18a6'),
+      ('serialize_ledger_owner_write', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], 'af28d762698ed1b15b21ae4e0c4df318'),
+      ('protect_adopted_legacy_position', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], 'd7dcebb7154e9eb6b7bafa503dd0d496'),
+      ('protect_adopted_asset_archive', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '7067d8875da1f3c0c2658f577775baf1'),
+      ('protect_immutable_ledger_record', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '3db46e89875a209fd3c65f84938d9089')
   ), actual AS (
     SELECT
       procedure_record.proname AS function_name,
@@ -358,7 +412,13 @@ BEGIN
     JOIN pg_language language_record ON language_record.oid = procedure_record.prolang
     WHERE namespace_record.nspname = current_schema()
       AND procedure_record.proname IN (
-        'assert_opening_event_movement', 'enforce_opening_event_movement'
+        'assert_opening_event_movement', 'enforce_opening_event_movement',
+        'assert_ledger_adoption_boundary', 'guard_ledger_adoption_boundary',
+        'assert_manual_event_semantics', 'enforce_manual_event_semantics',
+        'assert_nonnegative_asset_timeline', 'enforce_nonnegative_asset_timeline',
+        'serialize_ledger_owner_write',
+        'protect_adopted_legacy_position', 'protect_adopted_asset_archive',
+        'protect_immutable_ledger_record'
       )
       AND language_record.lanname = 'plpgsql'
       AND pg_has_role(current_user, procedure_record.proowner, 'USAGE')
@@ -378,6 +438,16 @@ BEGIN
     WHERE namespace_record.nspname = current_schema()
       AND type_record.typname = 'PortfolioEventKind'
   ) kinds;
+
+  SELECT array_agg(enum_label ORDER BY enum_order) INTO movement_roles
+  FROM (
+    SELECT enum_record.enumlabel::text AS enum_label, enum_record.enumsortorder AS enum_order
+    FROM pg_type type_record
+    JOIN pg_enum enum_record ON enum_record.enumtypid = type_record.oid
+    JOIN pg_namespace namespace_record ON namespace_record.oid = type_record.typnamespace
+    WHERE namespace_record.nspname = current_schema()
+      AND type_record.typname = 'AssetMovementRole'
+  ) roles;
 
   IF column_mismatches <> 0
      OR constraint_mismatches <> 0
@@ -399,6 +469,10 @@ BEGIN
   ] THEN
     RAISE EXCEPTION 'PortfolioEventKind mismatch: %', event_kinds;
   END IF;
+
+  IF movement_roles IS DISTINCT FROM ARRAY['PRINCIPAL', 'FEE'] THEN
+    RAISE EXCEPTION 'AssetMovementRole mismatch: %', movement_roles;
+  END IF;
 END
 $$;
 
@@ -412,7 +486,6 @@ DECLARE
   event_count integer;
   movement_count integer;
   derived_quantity numeric;
-  all_derived_quantity numeric;
 BEGIN
   IF NOT EXISTS (
     SELECT 1
@@ -451,6 +524,7 @@ BEGIN
     SELECT "id", "amount"::text AS amount_text
     FROM "UserAsset"
     WHERE "userId" = cutover_user_id
+      AND "date" <= adoption_timestamp
     ORDER BY "id"
   LOOP
     IF legacy_position.amount_text IN ('NaN', 'Infinity', '-Infinity') THEN
@@ -482,13 +556,16 @@ BEGIN
       AND event."kind" = 'OPENING_BALANCE'
       AND event."openingForUserAssetId" = legacy_position.id
       AND event."occurredAt" = adoption_timestamp
+      AND event."actualValueUsd" IS NULL
       AND event."externalFlowUsd" = 0
       AND event."feeUsd" = 0
+      AND event."note" IS NULL
       AND event."idempotencyKey" = 'opening:v1:' || legacy_position.id
       AND (
         movement."id" IS NULL
         OR (
           movement."userAssetId" = legacy_position.id
+          AND movement."role" = 'PRINCIPAL'
           AND movement."unitPriceUsd" IS NULL
           AND movement."priceEstimated" = false
         )
@@ -510,19 +587,6 @@ BEGIN
         source_quantity;
     END IF;
 
-    SELECT coalesce(sum(movement."quantityDelta"), 0)
-    INTO all_derived_quantity
-    FROM "AssetMovement" movement
-    WHERE movement."userId" = cutover_user_id
-      AND movement."userAssetId" = legacy_position.id;
-
-    IF all_derived_quantity <> source_quantity THEN
-      RAISE EXCEPTION
-        'Position % full ledger quantity % does not match legacy quantity %',
-        legacy_position.id,
-        all_derived_quantity,
-        source_quantity;
-    END IF;
   END LOOP;
 
   SELECT count(*) INTO event_count
@@ -533,6 +597,7 @@ BEGIN
   SELECT count(*) INTO movement_count
   FROM "UserAsset"
   WHERE "userId" = cutover_user_id
+    AND "date" <= adoption_timestamp
     AND "amount" > 0;
 
   IF event_count <> movement_count THEN
@@ -547,10 +612,15 @@ DECLARE
 BEGIN
   WITH legacy AS (
     SELECT
-      "id", "userId", "assetId", "assetName", "amount"::text AS amount_text,
+      "id", "userId", "assetId",
+      coalesce("ledgerInitialAssetName", "assetName") AS "assetName",
+      "amount"::text AS amount_text,
       to_char("date", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS date_text
     FROM "UserAsset"
     WHERE "userId" = current_setting('cryptfolio.cutover_user_id')
+      AND "date" <= (
+        current_setting('cryptfolio.adoption_at')::timestamptz AT TIME ZONE 'UTC'
+      )
   ), records AS (
     SELECT string_agg(concat(
       octet_length("id"), ':', "id", '|',

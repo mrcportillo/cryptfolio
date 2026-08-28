@@ -2,12 +2,13 @@ import { getAssetArchiveByUserAssetId } from "@/utils/db-api";
 import LazyLineChart from "../charts/LineChart/LazyLineChart";
 import { requireCurrentUser } from "@/lib/auth";
 import { Suspense } from "react";
-import type { AssetArchive } from "@prisma/client";
+import type { AssetHistoryPoint } from "@/services/asset/cutover-queries";
+import { approximateDecimalForMarketDisplay } from "@/services/coin/portfolio";
 
 type AssetEvolutionProps = {
   assetId: string;
   assetName: string;
-  currentAmount: number;
+  currentAmount: string;
 };
 
 const AssetEvolution = async ({
@@ -25,14 +26,18 @@ const AssetEvolution = async ({
     );
 
   const dataKeys = [assetName];
-  const formatedDataForChart = data.map((item: AssetArchive) => ({
-    date: item.date,
-    [assetName]: item.amount,
-  }));
-  formatedDataForChart.push({
-    date: new Date(),
-    [assetName]: currentAmount,
+  const formatedDataForChart = data.flatMap((item: AssetHistoryPoint) => {
+    const amount = approximateDecimalForMarketDisplay(item.amount);
+    return amount == null ? [] : [{ date: item.date, [assetName]: amount }];
   });
+  const approximateCurrentAmount =
+    approximateDecimalForMarketDisplay(currentAmount);
+  if (approximateCurrentAmount != null) {
+    formatedDataForChart.push({
+      date: new Date(),
+      [assetName]: approximateCurrentAmount,
+    });
+  }
 
   return (
     <LazyLineChart

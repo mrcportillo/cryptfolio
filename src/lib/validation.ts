@@ -5,6 +5,7 @@ export const MAX_ASSET_AMOUNT = 1e30;
 
 export type AssetFormValues = {
   id?: string;
+  expectedDate?: Date;
   assetId: string;
   assetName: string;
   amount: number;
@@ -26,11 +27,21 @@ function isValidCoinId(value: string) {
 
 export function validateAssetFormData(
   formData: FormData,
-  options: { requireId?: boolean; requireCoin?: boolean } = {},
+  options: {
+    requireId?: boolean;
+    requireCoin?: boolean;
+    requireVersion?: boolean;
+  } = {},
 ): AssetValidationResult {
-  const { requireId = false, requireCoin = true } = options;
+  const {
+    requireId = false,
+    requireCoin = true,
+    requireVersion = false,
+  } = options;
   const fieldErrors: FieldErrors = {};
   const id = readString(formData, "id");
+  const version = readString(formData, "version");
+  const expectedDate = version ? new Date(version) : null;
   const assetId = readString(formData, "coin");
   const assetName = readString(formData, "name");
   const amountValue = readString(formData, "amount");
@@ -38,6 +49,13 @@ export function validateAssetFormData(
 
   if (requireId && (!id || id.length > 64)) {
     fieldErrors.id = "The asset identifier is invalid.";
+  }
+
+  if (
+    requireVersion &&
+    (!expectedDate || Number.isNaN(expectedDate.getTime()))
+  ) {
+    fieldErrors.id = "Reload the asset before saving your changes.";
   }
 
   if (requireCoin && (!assetId || !isValidCoinId(assetId))) {
@@ -66,6 +84,9 @@ export function validateAssetFormData(
   return {
     values: {
       ...(id ? { id } : {}),
+      ...(expectedDate && !Number.isNaN(expectedDate.getTime())
+        ? { expectedDate }
+        : {}),
       assetId,
       assetName,
       amount,

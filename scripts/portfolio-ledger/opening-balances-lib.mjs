@@ -287,7 +287,7 @@ export function legacyFingerprint(userId, positions) {
   return createHash("sha256").update(payload, "utf8").digest("hex");
 }
 
-function openingFingerprint(records) {
+export function openingFingerprintV1(records) {
   const payload = records
     .map((record) =>
       [
@@ -384,6 +384,10 @@ export function verifyOpeningRecords({
       `Opening movement ${event.movementId} targets the wrong position.`,
     );
     invariant(
+      event.movementRole === "PRINCIPAL",
+      `Opening movement ${event.movementId} must have the principal role.`,
+    );
+    invariant(
       canonicalDecimal(event.quantityDeltaText) === position.quantity,
       `Opening movement ${event.movementId} changed the legacy quantity.`,
     );
@@ -400,11 +404,11 @@ export function verifyOpeningRecords({
 
   return {
     openingCount: recordsByEvent.size,
-    openingFingerprint: openingFingerprint(records),
+    openingFingerprint: openingFingerprintV1(records),
   };
 }
 
-export function verifyDerivedQuantities({ userId, positions, quantities }) {
+export function verifyOpeningQuantities({ userId, positions, quantities }) {
   invariant(
     quantities.length === positions.length,
     `Expected ${positions.length} derived positions, found ${quantities.length}.`,
@@ -417,18 +421,18 @@ export function verifyDerivedQuantities({ userId, positions, quantities }) {
   for (const quantity of quantities) {
     invariant(
       quantity.userId === userId,
-      "Derived quantities crossed an ownership boundary.",
+      "Opening quantities crossed an ownership boundary.",
     );
     const position = expectedByAsset.get(quantity.userAssetId);
-    invariant(position, `Unexpected derived position ${quantity.userAssetId}.`);
+    invariant(position, `Unexpected opening position ${quantity.userAssetId}.`);
     invariant(
       !seenAssets.has(position.id),
-      `Duplicate derived position ${position.id}.`,
+      `Duplicate opening position ${position.id}.`,
     );
     seenAssets.add(position.id);
     invariant(
       canonicalDecimal(quantity.quantityText) === position.quantity,
-      `Derived quantity for ${position.id} does not match the legacy amount.`,
+      `Opening quantity for ${position.id} does not match the legacy amount.`,
     );
   }
 }
@@ -461,13 +465,24 @@ export async function runOpeningBalanceConversion({
     const rows = await store.getLegacyPositions(transaction, userId, {
       lock: apply,
     });
-    const positions = prepareLegacyPositions(userId, rows);
+    const cutoverRows = user.ledgerAdoptedAt
+      ? rows.filter(
+          (row) =>
+            new Date(row.dateText).getTime() <=
+            new Date(user.ledgerAdoptedAt).getTime(),
+        )
+      : rows;
+    const positions = prepareLegacyPositions(userId, cutoverRows);
     const positivePositions = positions.filter((position) => position.positive);
     const fingerprint = legacyFingerprint(userId, positions);
     const verifyLedgerState = async () => {
       const [records, quantities] = await Promise.all([
         store.getOpeningRecords(transaction, userId),
-        store.getDerivedQuantities(transaction, userId),
+        store.getOpeningQuantities(
+          transaction,
+          userId,
+          positions.map(({ id }) => id),
+        ),
       ]);
       const verification = verifyOpeningRecords({
         userId,
@@ -475,7 +490,7 @@ export async function runOpeningBalanceConversion({
         positivePositions,
         records,
       });
-      verifyDerivedQuantities({ userId, positions, quantities });
+      verifyOpeningQuantities({ userId, positions, quantities });
       return verification;
     };
 

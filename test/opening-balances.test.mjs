@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   canonicalDecimal,
+  openingFingerprintV1,
   parseOpeningBalanceArguments,
   prepareLegacyPositions,
   runOpeningBalanceConversion,
@@ -60,6 +61,7 @@ function createFakeStore({
         movementId: movement?.id ?? null,
         movementUserId: movement?.userId ?? null,
         movementUserAssetId: movement?.userAssetId ?? null,
+        movementRole: movement?.role ?? null,
         quantityDeltaText: movement?.quantityDelta ?? null,
         unitPriceUsdText: movement?.unitPriceUsd ?? null,
         priceEstimated: movement?.priceEstimated ?? null,
@@ -88,9 +90,12 @@ function createFakeStore({
 
     async getLegacyPositions(transaction, userId, { lock }) {
       calls.push(`positions:${lock ? "lock" : "read"}:${userId}`);
-      return transaction.positions.filter(
-        (position) => position.userId === userId,
-      );
+      return transaction.positions
+        .filter((position) => position.userId === userId)
+        .map((position) => ({
+          ...position,
+          assetName: position.ledgerInitialAssetName ?? position.assetName,
+        }));
     },
 
     async createOpening(
@@ -132,6 +137,7 @@ function createFakeStore({
           userId,
           portfolioEventId: event.id,
           userAssetId: position.id,
+          role: "PRINCIPAL",
           quantityDelta: position.quantity,
           unitPriceUsd: null,
           priceEstimated: false,
@@ -148,15 +154,28 @@ function createFakeStore({
       calls.push("opening:constraints:flush");
     },
 
-    async getDerivedQuantities(transaction, userId) {
+    async getOpeningQuantities(transaction, userId, positionIds) {
       calls.push(`quantities:verify:${userId}`);
+      const openingEventIds = new Set(
+        transaction.events
+          .filter(
+            (event) =>
+              event.userId === userId && event.kind === "OPENING_BALANCE",
+          )
+          .map(({ id }) => id),
+      );
       return transaction.positions
-        .filter((legacyPosition) => legacyPosition.userId === userId)
+        .filter(
+          (legacyPosition) =>
+            legacyPosition.userId === userId &&
+            positionIds.includes(legacyPosition.id),
+        )
         .map((legacyPosition) => {
           const movements = transaction.movements.filter(
             (movement) =>
               movement.userId === userId &&
-              movement.userAssetId === legacyPosition.id,
+              movement.userAssetId === legacyPosition.id &&
+              openingEventIds.has(movement.portfolioEventId),
           );
           assert.ok(movements.length <= 1, "fake expects at most one movement");
           return {
@@ -174,6 +193,11 @@ function createFakeStore({
       );
       if (!user || user.ledgerAdoptedAt) {
         return null;
+      }
+      for (const legacyPosition of transaction.positions.filter(
+        ({ userId: owner }) => owner === userId,
+      )) {
+        legacyPosition.ledgerInitialAssetName = legacyPosition.assetName;
       }
       user.ledgerAdoptedAt = timestamp;
       return user;
@@ -359,7 +383,21 @@ test("apply creates one exact opening per positive owned position and marks adop
     fixture.state.users.find((user) => user.id === ownerId).ledgerAdoptedAt,
     adoptionAt,
   );
-  assert.deepEqual(fixture.state.positions, legacyBefore);
+  assert.deepEqual(
+    fixture.state.positions.map(
+      ({ ledgerInitialAssetName: _capturedAlias, ...legacyPosition }) =>
+        legacyPosition,
+    ),
+    legacyBefore,
+  );
+  assert.ok(
+    fixture.state.positions
+      .filter(({ userId }) => userId === ownerId)
+      .every(
+        ({ assetName, ledgerInitialAssetName }) =>
+          ledgerInitialAssetName === assetName,
+      ),
+  );
   assert.deepEqual(fixture.state.archives, archivesBefore);
   const adoptionCall = fixture.calls.indexOf(`user:mark-adopted:${ownerId}`);
   const constraintFlushCall = fixture.calls.indexOf(
@@ -388,6 +426,32 @@ test("retry is idempotent and preserves the opening fingerprint", async () => {
     adoptionAt,
     expectedFingerprint: dryRun.legacyFingerprint,
     apply: true,
+  });
+  fixture.state.positions[0].assetName = "Renamed after adoption";
+  fixture.state.positions.push(
+    position({
+      id: "sol-after-adoption",
+      assetId: "solana",
+      amountText: "0",
+      dateText: "2026-08-22T12:00:00.000Z",
+    }),
+  );
+  fixture.state.events.push({
+    id: "later-buy",
+    userId: ownerId,
+    kind: "BUY",
+    occurredAt: "2026-08-22T12:00:00.000Z",
+    idempotencyKey: "later-buy",
+  });
+  fixture.state.movements.push({
+    id: "later-buy-movement",
+    userId: ownerId,
+    portfolioEventId: "later-buy",
+    userAssetId: "sol-after-adoption",
+    role: "PRINCIPAL",
+    quantityDelta: "3",
+    unitPriceUsd: null,
+    priceEstimated: false,
   });
   const stateAfterFirstApply = clone(fixture.state);
 
@@ -494,6 +558,7 @@ test("opening verification rejects cross-owner movement records", () => {
             movementId: "movement-btc",
             movementUserId: "auth0|other",
             movementUserAssetId: "btc",
+            movementRole: "PRINCIPAL",
             quantityDeltaText: "1",
             unitPriceUsdText: null,
             priceEstimated: false,
@@ -504,11 +569,37 @@ test("opening verification rejects cross-owner movement records", () => {
   );
 });
 
+test("the v1 opening fingerprint deliberately remains stable across the role expansion", () => {
+  const record = {
+    eventId: "event-btc",
+    eventUserId: ownerId,
+    kind: "OPENING_BALANCE",
+    occurredAtText: adoptionAt,
+    externalFlowUsdText: "0",
+    feeUsdText: "0",
+    idempotencyKey: "opening:v1:btc",
+    openingForUserAssetId: "btc",
+    movementId: "movement-btc",
+    movementUserId: ownerId,
+    movementUserAssetId: "btc",
+    movementRole: "PRINCIPAL",
+    quantityDeltaText: "1",
+    unitPriceUsdText: null,
+    priceEstimated: false,
+  };
+
+  assert.equal(
+    openingFingerprintV1([record]),
+    openingFingerprintV1([{ ...record, movementRole: "FEE" }]),
+  );
+});
+
 test("schema and migrations enforce ledger invariants offline", async () => {
   const [
     schema,
     baseline,
     migration,
+    manualMigration,
     migrationLock,
     cli,
     preflight,
@@ -525,6 +616,13 @@ test("schema and migrations enforce ledger invariants offline", async () => {
     readFile(
       new URL(
         "../prisma/migrations/20260820121000_add_portfolio_ledger/migration.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../prisma/migrations/20260820122000_add_manual_transactions/migration.sql",
         import.meta.url,
       ),
       "utf8",
@@ -561,6 +659,10 @@ test("schema and migrations enforce ledger invariants offline", async () => {
     /reversalOf\s+PortfolioEvent\?\s+@relation\("PortfolioEventReversal", fields: \[reversalOfEventId, userId\], references: \[id, userId\], onDelete: Restrict\)/,
   );
   assert.match(schema, /@@unique\(\[reversalOfEventId, userId\]\)/);
+  assert.match(
+    schema,
+    /ledgerInitialAssetName\s+String\?\s+@db\.VarChar\(80\)/,
+  );
   assert.match(baseline, /"amount" DOUBLE PRECISION NOT NULL/);
   assert.match(baseline, /UserAsset_userId_date_idx/);
   assert.match(baseline, /AssetArchive_userAssetId_date_idx/);
@@ -569,6 +671,21 @@ test("schema and migrations enforce ledger invariants offline", async () => {
   assert.match(migration, /PortfolioEvent_reversal_shape_check/);
   assert.match(migration, /PortfolioEvent_fee_sign_check/);
   assert.match(migration, /PortfolioEvent_not_self_reversal_check/);
+  assert.match(manualMigration, /PortfolioEvent_opening_actual_value_check/);
+  assert.match(manualMigration, /User_ledger_adoption_boundary_guard/);
+  assert.match(manualMigration, /assert_ledger_adoption_boundary/);
+  assert.match(manualMigration, /AssetMovement_nonnegative_timeline_check/);
+  assert.match(manualMigration, /assert_nonnegative_asset_timeline/);
+  assert.match(manualMigration, /PortfolioEvent_finite_actual_value_check/);
+  assert.match(manualMigration, /PortfolioEvent_finite_external_flow_check/);
+  assert.match(manualMigration, /PortfolioEvent_finite_fee_check/);
+  assert.match(manualMigration, /AssetMovement_finite_quantity_check/);
+  assert.match(manualMigration, /AssetMovement_finite_unit_price_check/);
+  assert.match(manualMigration, /PortfolioEvent_finite_occurred_at_check/);
+  assert.match(manualMigration, /User_finite_ledger_adopted_at_check/);
+  assert.match(manualMigration, /UserAsset_finite_archived_at_check/);
+  assert.match(manualMigration, /AssetMovement_owner_write_serialization/);
+  assert.match(manualMigration, /serialize_ledger_owner_write/);
   assert.match(migration, /AssetMovement_nonzero_quantity_check/);
   assert.match(
     migration,
@@ -589,6 +706,7 @@ test("schema and migrations enforce ledger invariants offline", async () => {
   assert.match(cli, /FOR UPDATE/);
   assert.match(cli, /SET CONSTRAINTS/);
   assert.match(cli, /PortfolioEvent_exactly_one_opening_movement_check/);
+  assert.match(cli, /AssetMovement_nonnegative_timeline_check/);
   assert.match(cli, /\$5::numeric\(65,30\)/);
   assert.doesNotMatch(cli, /UPDATE "UserAsset"|UPDATE "AssetArchive"/);
   assert.match(preflight, /BEGIN TRANSACTION READ ONLY/);
@@ -597,6 +715,8 @@ test("schema and migrations enforce ledger invariants offline", async () => {
   assert.match(preflight, /datetime_precision/);
   assert.match(verification, /expected_archive_fingerprint/);
   assert.match(verification, /expected_opening_fingerprint/);
+  assert.match(verification, /User_ledger_adoption_boundary_guard/);
+  assert.match(verification, /AssetMovement_nonnegative_timeline_check/);
   assert.match(verification, /pg_get_constraintdef/);
   assert.match(verification, /source_md5/);
   assert.match(verification, /fires_insert/);

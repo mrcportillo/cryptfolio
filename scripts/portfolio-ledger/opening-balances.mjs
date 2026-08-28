@@ -19,6 +19,19 @@ function isSerializationFailure(error) {
 }
 
 function userSelectionSql({ lock = false } = {}) {
+  if (lock) {
+    return `
+      UPDATE "User"
+      SET "ledgerAdoptedAt" = "ledgerAdoptedAt"
+      WHERE "id" = $1
+      RETURNING
+        "id",
+        CASE
+          WHEN "ledgerAdoptedAt" IS NULL THEN NULL
+          ELSE ${UTC_TIMESTAMP_SQL.replace("%s", '"ledgerAdoptedAt"')}
+        END AS "ledgerAdoptedAt"
+    `;
+  }
   return `
     SELECT
       "id",
@@ -28,7 +41,6 @@ function userSelectionSql({ lock = false } = {}) {
       END AS "ledgerAdoptedAt"
     FROM "User"
     WHERE "id" = $1
-    ${lock ? "FOR UPDATE" : ""}
   `;
 }
 
@@ -38,7 +50,7 @@ function legacyPositionsSql({ lock = false } = {}) {
       "id",
       "userId",
       "assetId",
-      "assetName",
+      coalesce("ledgerInitialAssetName", "assetName") AS "assetName",
       "amount"::text AS "amountText",
       ${UTC_TIMESTAMP_SQL.replace("%s", '"date"')} AS "dateText"
     FROM "UserAsset"
@@ -161,6 +173,7 @@ export function createPostgresOpeningBalanceStore(client) {
             "userId",
             "portfolioEventId",
             "userAssetId",
+            "role",
             "quantityDelta",
             "unitPriceUsd",
             "priceEstimated"
@@ -170,6 +183,7 @@ export function createPostgresOpeningBalanceStore(client) {
             $2,
             $3,
             $4,
+            'PRINCIPAL',
             $5::numeric(65,30),
             NULL,
             false
@@ -189,7 +203,10 @@ export function createPostgresOpeningBalanceStore(client) {
         `
           SET CONSTRAINTS
             "PortfolioEvent_exactly_one_opening_movement_check",
-            "AssetMovement_exactly_one_opening_movement_check"
+            "AssetMovement_exactly_one_opening_movement_check",
+            "PortfolioEvent_manual_semantics_check",
+            "AssetMovement_manual_semantics_check",
+            "AssetMovement_nonnegative_timeline_check"
           IMMEDIATE
         `,
       );
@@ -210,6 +227,7 @@ export function createPostgresOpeningBalanceStore(client) {
             movement."id" AS "movementId",
             movement."userId" AS "movementUserId",
             movement."userAssetId" AS "movementUserAssetId",
+            movement."role"::text AS "movementRole",
             movement."quantityDelta"::text AS "quantityDeltaText",
             movement."unitPriceUsd"::text AS "unitPriceUsdText",
             movement."priceEstimated" AS "priceEstimated"
@@ -225,7 +243,7 @@ export function createPostgresOpeningBalanceStore(client) {
       );
     },
 
-    getDerivedQuantities(transaction, userId) {
+    getOpeningQuantities(transaction, userId, positionIds) {
       return transaction.$queryRawUnsafe(
         `
           SELECT
@@ -233,14 +251,20 @@ export function createPostgresOpeningBalanceStore(client) {
             position."userId" AS "userId",
             coalesce(sum(movement."quantityDelta"), 0)::text AS "quantityText"
           FROM "UserAsset" AS position
+          LEFT JOIN "PortfolioEvent" AS event
+            ON event."userId" = position."userId"
+           AND event."openingForUserAssetId" = position."id"
+           AND event."kind" = 'OPENING_BALANCE'
           LEFT JOIN "AssetMovement" AS movement
-            ON movement."userAssetId" = position."id"
-           AND movement."userId" = position."userId"
+            ON movement."portfolioEventId" = event."id"
+           AND movement."userId" = event."userId"
           WHERE position."userId" = $1
+            AND position."id" = ANY($2::text[])
           GROUP BY position."id", position."userId"
           ORDER BY position."id"
         `,
         userId,
+        positionIds,
       );
     },
 

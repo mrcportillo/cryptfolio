@@ -91,6 +91,7 @@ BEGIN
       ('User', 2, 'name', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('User', 3, 'email', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('User', 4, 'ledgerAdoptedAt', 'timestamp', 'YES', NULL::text, NULL::integer, NULL::integer, NULL::integer, 3),
+      ('User', 5, 'ledgerRevision', 'int8', 'NO', '0', 64, 0, NULL::integer, NULL::integer),
       ('UserAsset', 1, 'id', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('UserAsset', 2, 'userId', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
       ('UserAsset', 3, 'assetId', 'text', 'NO', NULL::text, NULL::integer, NULL::integer, NULL::integer, NULL::integer),
@@ -236,6 +237,7 @@ BEGIN
   WITH expected(table_name, constraint_name, definition) AS (
     VALUES
       ('User', 'User_pkey', 'PRIMARY KEY (id)'),
+      ('User', 'User_nonnegative_ledger_revision_check', 'CHECK ("ledgerRevision" >= 0)'),
       ('User', 'User_finite_ledger_adopted_at_check', 'CHECK ("ledgerAdoptedAt" IS NULL OR isfinite("ledgerAdoptedAt"))'),
       ('UserAsset', 'UserAsset_pkey', 'PRIMARY KEY (id)'),
       ('UserAsset', 'UserAsset_userId_fkey', 'FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE'),
@@ -332,7 +334,8 @@ BEGIN
       ('AssetMovement_immutable', 'AssetMovement', false, false, 'O'::"char", 'protect_immutable_ledger_record', true, false, false, true, true, false, false, true, 0, 'CREATE TRIGGER "AssetMovement_immutable" BEFORE DELETE OR UPDATE ON "AssetMovement" FOR EACH ROW EXECUTE FUNCTION protect_immutable_ledger_record()'),
       ('User_ledger_adoption_boundary_guard', 'User', false, false, 'O'::"char", 'guard_ledger_adoption_boundary', true, false, true, true, false, false, false, true, 0, 'CREATE TRIGGER "User_ledger_adoption_boundary_guard" BEFORE INSERT OR UPDATE ON "User" FOR EACH ROW EXECUTE FUNCTION guard_ledger_adoption_boundary()'),
       ('UserAsset_adopted_legacy_fields_frozen', 'UserAsset', false, false, 'O'::"char", 'protect_adopted_legacy_position', true, false, true, true, true, false, false, true, 0, 'CREATE TRIGGER "UserAsset_adopted_legacy_fields_frozen" BEFORE INSERT OR DELETE OR UPDATE ON "UserAsset" FOR EACH ROW EXECUTE FUNCTION protect_adopted_legacy_position()'),
-      ('AssetArchive_adopted_history_frozen', 'AssetArchive', false, false, 'O'::"char", 'protect_adopted_asset_archive', true, false, true, true, true, false, false, true, 0, 'CREATE TRIGGER "AssetArchive_adopted_history_frozen" BEFORE INSERT OR DELETE OR UPDATE ON "AssetArchive" FOR EACH ROW EXECUTE FUNCTION protect_adopted_asset_archive()')
+      ('AssetArchive_adopted_history_frozen', 'AssetArchive', false, false, 'O'::"char", 'protect_adopted_asset_archive', true, false, true, true, true, false, false, true, 0, 'CREATE TRIGGER "AssetArchive_adopted_history_frozen" BEFORE INSERT OR DELETE OR UPDATE ON "AssetArchive" FOR EACH ROW EXECUTE FUNCTION protect_adopted_asset_archive()'),
+      ('AssetMovement_snapshot_invalidation', 'AssetMovement', false, false, 'O'::"char", 'invalidate_snapshots_for_movement', true, true, true, false, false, false, false, true, 0, 'CREATE TRIGGER "AssetMovement_snapshot_invalidation" AFTER INSERT ON "AssetMovement" FOR EACH ROW EXECUTE FUNCTION invalidate_snapshots_for_movement()')
   ), actual AS (
     SELECT
       trigger_record.tgname AS trigger_name,
@@ -395,7 +398,8 @@ BEGIN
       ('serialize_ledger_owner_write', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], 'af28d762698ed1b15b21ae4e0c4df318'),
       ('protect_adopted_legacy_position', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], 'd7dcebb7154e9eb6b7bafa503dd0d496'),
       ('protect_adopted_asset_archive', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '7067d8875da1f3c0c2658f577775baf1'),
-      ('protect_immutable_ledger_record', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '3db46e89875a209fd3c65f84938d9089')
+      ('protect_immutable_ledger_record', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '3db46e89875a209fd3c65f84938d9089'),
+      ('invalidate_snapshots_for_movement', '', 'trigger', 'v'::"char", false, false, 'u'::"char", ARRAY['search_path=' || current_schema()]::text[], '8d1aa1899880f8f5a1056a600a46a5c2')
   ), actual AS (
     SELECT
       procedure_record.proname AS function_name,
@@ -418,7 +422,7 @@ BEGIN
         'assert_nonnegative_asset_timeline', 'enforce_nonnegative_asset_timeline',
         'serialize_ledger_owner_write',
         'protect_adopted_legacy_position', 'protect_adopted_asset_archive',
-        'protect_immutable_ledger_record'
+        'protect_immutable_ledger_record', 'invalidate_snapshots_for_movement'
       )
       AND language_record.lanname = 'plpgsql'
       AND pg_has_role(current_user, procedure_record.proowner, 'USAGE')

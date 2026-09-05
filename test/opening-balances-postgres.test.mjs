@@ -346,6 +346,7 @@ if (!configuredUrl) {
               assetId: "bitcoin",
               assetName: "Concurrent BTC",
               amount: 1,
+              date: new Date("2026-08-20T12:00:00Z"),
             },
           });
           const preview = parseCli(
@@ -430,6 +431,7 @@ if (!configuredUrl) {
               assetId: "bitcoin",
               assetName: "Other BTC",
               amount: 0,
+              date: new Date("2026-08-20T12:00:00Z"),
             },
           });
           await client.user.update({

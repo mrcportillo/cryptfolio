@@ -13,7 +13,9 @@
     "test:ledger-postgres": "CRYPTFOLIO_REQUIRE_LEDGER_TEST_DATABASE=1 node --test test/opening-balances-postgres.test.mjs",
     "test:transactions-postgres": "CRYPTFOLIO_REQUIRE_LEDGER_TEST_DATABASE=1 node --experimental-strip-types --test test/portfolio-transactions-postgres.test.mjs",
     "audit": "pnpm audit --prod",
-    "ledger:opening-balances": "node scripts/portfolio-ledger/opening-balances.mjs"
+    "ledger:opening-balances": "node scripts/portfolio-ledger/opening-balances.mjs",
+    "valuation:snapshot": "node --experimental-strip-types scripts/portfolio-valuation/snapshots.mjs",
+    "test:valuation-postgres": "CRYPTFOLIO_REQUIRE_VALUATION_TEST_DATABASE=1 node --experimental-strip-types --test test/portfolio-valuation-postgres.test.mjs"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.25.0",

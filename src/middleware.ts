@@ -1,10 +1,18 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth0 } from "@/lib/auth0";
+import { isPortfolioSnapshotCronPath } from "@/lib/cron-path";
 
 export async function middleware(request: NextRequest) {
-  const response = await auth0.middleware(request);
   const pathname = request.nextUrl.pathname;
+
+  // Vercel Cron has no browser session. This one exact route authenticates its
+  // dedicated bearer secret inside the handler before touching the database.
+  if (isPortfolioSnapshotCronPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  const response = await auth0.middleware(request);
 
   if (pathname.startsWith("/api/auth")) {
     return response;

@@ -4,9 +4,9 @@ import { sortAssetsByValue } from "../src/lib/assets.ts";
 
 test("assets are sorted by descending total value without mutating the input", () => {
   const assets = [
-    { id: "low", amount: 2, price: 10 },
-    { id: "missing-price", amount: 100, price: null },
-    { id: "high", amount: 3, price: 20 },
+    { id: "low", approximateMarketValue: 20 },
+    { id: "missing-price", approximateMarketValue: null },
+    { id: "high", approximateMarketValue: 60 },
   ];
 
   const sortedAssets = sortAssetsByValue(assets);

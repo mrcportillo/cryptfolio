@@ -21,6 +21,8 @@ AUTH0_CLIENT_ID=...
 AUTH0_CLIENT_SECRET=...
 AUTH0_SECRET=...
 COIN_API_KEY=...
+COIN_API_PLAN=demo
+CRON_SECRET=...
 POSTGRES_PRISMA_URL=...
 POSTGRES_URL_NON_POOLING=...
 ```
@@ -48,7 +50,12 @@ The application requires an authenticated Auth0 session. Authentication is handl
 - `pnpm start` — start the production server
 - `pnpm lint` — run ESLint
 - `pnpm test` — run validation and pagination tests
+- `pnpm test:ledger-postgres` — run opt-in ledger integration tests against an explicitly supplied disposable local PostgreSQL database
+- `pnpm test:transactions-postgres` — run opt-in manual-transaction, concurrency, and cutover tests against that disposable database
 - `pnpm run audit` — audit production dependencies
+- `pnpm ledger:opening-balances -- --help` — inspect the dry-run-first opening-balance cutover command
+- `pnpm valuation:snapshot -- --help` — preview/apply a daily snapshot or append a documented repair revision
+- `pnpm test:valuation-postgres` — run opt-in valuation, idempotency, and correction-invalidation checks against an explicitly supplied disposable local PostgreSQL database
 
 The current Next.js release line has a moderate PostCSS advisory reported for its pinned nested PostCSS dependency. Avoid forcing an automated audit fix that downgrades Next.js; re-evaluate upgrades when the Next.js release line publishes a compatible PostCSS update.
 
@@ -61,6 +68,26 @@ pnpm prisma migrate dev --name add_asset_indexes_and_archive_cascade
 pnpm prisma generate
 ```
 
+The repository now contains a legacy baseline migration because the deployed
+schema predates Prisma migration tracking. Do not run that baseline against an
+existing database. Follow the checked, staged procedure in
+[`docs/operations/opening-balance-cutover.md`](docs/operations/opening-balance-cutover.md),
+including baseline verification and `prisma migrate resolve`, before deploying
+the additive ledger migrations. Opening-balance apply mode remains deferred
+until the transaction-aware application build is deployed or legacy writes are
+explicitly frozen. The manual-event contract and verification queries are in
+[`docs/operations/manual-transactions-cutover.md`](docs/operations/manual-transactions-cutover.md).
+Daily snapshot configuration, manual repair, reconciliation checks, and
+forward-only rollback are documented in
+[`docs/operations/daily-valuation.md`](docs/operations/daily-valuation.md).
+
+The PostgreSQL ledger integration suite never reads `.env.local`. Supply
+`CRYPTFOLIO_LEDGER_TEST_DATABASE_URL` explicitly; the harness refuses
+non-loopback hosts and database names that do not contain both `cryptfolio` and
+`test`, then creates and removes only uniquely named test schemas.
+The valuation suite uses `CRYPTFOLIO_VALUATION_TEST_DATABASE_URL` with the same
+loopback and safe-name requirements and forces UTC database sessions.
+
 ## Architecture notes
 
 - `src/lib/auth0.ts` owns the Auth0 v4 client and callback user upsert.
@@ -69,6 +96,17 @@ pnpm prisma generate
 - CoinGecko market data is batched and cached with bounded retries and timeouts.
 - User-specific portfolio data is not publicly cached.
 - Asset mutations validate input and update history atomically.
+- `/transactions` is the authenticated manual journal for buys, sells,
+  transfers, swaps, and crypto fees. Financial inputs remain exact decimal
+  strings from the form through the ledger service.
+- Transaction times are entered in `America/Argentina/Salta` and submitted
+  with an explicit `-03:00` offset. Unknown USD amounts stay `NULL` and are
+  displayed as unvalued rather than zero.
+- Corrections retain the original event and atomically write its exact reversal
+  plus a complete same-kind replacement.
+- Current portfolio worth is live and explicitly incomplete when a positive
+  holding lacks a USD price. Stable daily snapshots close at Salta local
+  midnight and retain immutable price-quality and reconciliation evidence.
 
 ## Operational monitoring
 

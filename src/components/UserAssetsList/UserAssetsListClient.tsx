@@ -13,12 +13,14 @@ type UserAssetsListClientProps = {
     previousState: AssetActionState,
     formData: FormData,
   ) => Promise<AssetActionState>;
+  quantityEditable: boolean;
   selectedCoinFilter?: string;
 };
 
 export default function UserAssetsListClient({
   assets,
   updateAction,
+  quantityEditable,
   selectedCoinFilter = "all",
 }: UserAssetsListClientProps) {
   const [selectedAsset, setSelectedAsset] = useState<AssetWithPrice | null>(
@@ -75,6 +77,8 @@ export default function UserAssetsListClient({
           coinId={selectedAsset.assetId}
           coinName={selectedAsset.coinName}
           amount={selectedAsset.amount}
+          version={new Date(selectedAsset.date)}
+          quantityEditable={quantityEditable}
           formAction={updateAction}
         />
       ) : null}

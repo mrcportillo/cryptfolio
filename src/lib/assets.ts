@@ -1,6 +1,5 @@
 type ValuableAsset = {
-  amount: number;
-  price: number | null;
+  approximateMarketValue: number | null;
 };
 
 export function sortAssetsByValue<T extends ValuableAsset>(
@@ -8,7 +7,7 @@ export function sortAssetsByValue<T extends ValuableAsset>(
 ): T[] {
   return [...assets].sort(
     (firstAsset, secondAsset) =>
-      (secondAsset.price ?? 0) * secondAsset.amount -
-      (firstAsset.price ?? 0) * firstAsset.amount,
+      (secondAsset.approximateMarketValue ?? 0) -
+      (firstAsset.approximateMarketValue ?? 0),
   );
 }

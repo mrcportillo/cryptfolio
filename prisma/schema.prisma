@@ -3,38 +3,302 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
   directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
 }
 
 model User {
-    id String @id
-    name String
-    email String @unique
-    userAssets UserAsset[]
+  id                           String                        @id
+  name                         String
+  email                        String                        @unique
+  ledgerAdoptedAt              DateTime?
+  ledgerRevision               BigInt                        @default(0)
+  userAssets                   UserAsset[]
+  portfolioEvents              PortfolioEvent[]
+  portfolioSnapshots           PortfolioSnapshot[]
+  snapshotRecalculationRequest SnapshotRecalculationRequest?
+  portfolioPreference          PortfolioPreference?
+  stressScenarios              StressScenario[]
 }
 
 model UserAsset {
-    id String @default(cuid()) @id
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-    userId String
-    assetId String
-    assetName String
-    amount Float
-    date DateTime @default(now())
-    assetArchive AssetArchive[]
+  id                     String             @id @default(cuid())
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                 String
+  assetId                String
+  assetName              String
+  amount                 Float
+  date                   DateTime           @default(now())
+  archivedAt             DateTime?
+  ledgerInitialAssetName String?            @db.VarChar(80)
+  assetArchive           AssetArchive[]
+  movements              AssetMovement[]
+  openingEvent           PortfolioEvent?
+  positionSnapshots      PositionSnapshot[]
+  allocationTarget       AllocationTarget?
 
-    @@index([userId, date])
-    @@index([assetId])
+  @@unique([id, userId])
+  @@index([userId, date])
+  @@index([userId, archivedAt, date])
+  @@index([assetId])
 }
 
 model AssetArchive {
-    id String @default(cuid()) @id
-    userAsset UserAsset @relation(fields: [userAssetId], references: [id], onDelete: Cascade)
-    userAssetId String
-    amount Float
-    date DateTime
+  id          String    @id @default(cuid())
+  userAsset   UserAsset @relation(fields: [userAssetId], references: [id], onDelete: Cascade)
+  userAssetId String
+  amount      Float
+  date        DateTime
 
-    @@index([userAssetId, date])
+  @@index([userAssetId, date])
+}
+
+enum PortfolioEventKind {
+  OPENING_BALANCE
+  BUY
+  SELL
+  TRANSFER_IN
+  TRANSFER_OUT
+  SWAP
+  FEE
+  REVERSAL
+}
+
+enum AssetMovementRole {
+  PRINCIPAL
+  FEE
+}
+
+enum SnapshotKind {
+  DAILY
+  ADOPTION_BASELINE
+}
+
+enum SnapshotLifecycleStatus {
+  COMPLETE
+  INCOMPLETE
+  STALE
+}
+
+enum SnapshotRevisionProvenance {
+  SCHEDULED
+  MANUAL
+  REPAIR
+  ADOPTION_BASELINE
+}
+
+enum SnapshotValuationStatus {
+  COMPLETE
+  INCOMPLETE
+}
+
+enum SnapshotReconciliationStatus {
+  COMPLETE
+  INCOMPLETE
+  NOT_APPLICABLE
+}
+
+enum SnapshotPriceQuality {
+  OBSERVED
+  STALE_FALLBACK
+  HISTORICAL_ESTIMATE
+  MISSING
+}
+
+enum SnapshotPriceMissingReason {
+  MISSING_CREDENTIAL
+  RATE_LIMITED
+  PROVIDER_UNAVAILABLE
+  UNKNOWN_COIN
+  INVALID_RESPONSE
+  NO_ACCEPTABLE_OBSERVATION
+}
+
+model PortfolioEvent {
+  id                    String             @id @default(cuid())
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId                String
+  kind                  PortfolioEventKind
+  occurredAt            DateTime
+  actualValueUsd        Decimal?           @db.Decimal(65, 30)
+  externalFlowUsd       Decimal?           @db.Decimal(65, 30)
+  feeUsd                Decimal?           @db.Decimal(65, 30)
+  note                  String?            @db.VarChar(500)
+  idempotencyKey        String             @db.VarChar(160)
+  openingForUserAsset   UserAsset?         @relation(fields: [openingForUserAssetId, userId], references: [id, userId], onDelete: Restrict)
+  openingForUserAssetId String?
+  reversalOf            PortfolioEvent?    @relation("PortfolioEventReversal", fields: [reversalOfEventId, userId], references: [id, userId], onDelete: Restrict)
+  reversalOfEventId     String?
+  reversedBy            PortfolioEvent?    @relation("PortfolioEventReversal")
+  replacementFor        PortfolioEvent?    @relation("PortfolioEventReplacement", fields: [replacementForEventId, userId], references: [id, userId], onDelete: Restrict)
+  replacementForEventId String?
+  replacedBy            PortfolioEvent?    @relation("PortfolioEventReplacement")
+  movements             AssetMovement[]
+  createdAt             DateTime           @default(now())
+
+  @@unique([id, userId])
+  @@unique([userId, idempotencyKey])
+  @@unique([openingForUserAssetId, userId])
+  @@unique([reversalOfEventId, userId])
+  @@unique([replacementForEventId, userId])
+  @@index([userId, occurredAt, id])
+}
+
+model AssetMovement {
+  id               String            @id @default(cuid())
+  userId           String
+  portfolioEvent   PortfolioEvent    @relation(fields: [portfolioEventId, userId], references: [id, userId], onDelete: Restrict)
+  portfolioEventId String
+  userAsset        UserAsset         @relation(fields: [userAssetId, userId], references: [id, userId], onDelete: Restrict)
+  userAssetId      String
+  role             AssetMovementRole @default(PRINCIPAL)
+  quantityDelta    Decimal           @db.Decimal(65, 30)
+  unitPriceUsd     Decimal?          @db.Decimal(65, 30)
+  priceEstimated   Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+
+  @@unique([portfolioEventId, userAssetId, role])
+  @@index([userId, userAssetId, createdAt, id])
+  @@index([userId, portfolioEventId])
+}
+
+model PortfolioSnapshot {
+  id                   String                      @id @default(cuid())
+  user                 User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId               String
+  kind                 SnapshotKind
+  reportingDate        DateTime                    @db.Date
+  lifecycleStatus      SnapshotLifecycleStatus     @default(INCOMPLETE)
+  activeRevisionNumber Int?
+  staleAt              DateTime?
+  createdAt            DateTime                    @default(now())
+  revisions            PortfolioSnapshotRevision[] @relation("PortfolioSnapshotRevisions")
+  activeRevision       PortfolioSnapshotRevision?  @relation("ActivePortfolioSnapshotRevision", fields: [id, userId, activeRevisionNumber], references: [snapshotId, userId, revision], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([id, userId])
+  @@unique([id, userId, activeRevisionNumber])
+  @@unique([userId, kind, reportingDate])
+  @@index([userId, lifecycleStatus, reportingDate])
+}
+
+model PortfolioSnapshotRevision {
+  id                          String                       @id @default(cuid())
+  snapshot                    PortfolioSnapshot            @relation("PortfolioSnapshotRevisions", fields: [snapshotId, userId], references: [id, userId], onDelete: Restrict, onUpdate: Cascade)
+  snapshotId                  String
+  userId                      String
+  revision                    Int
+  cutoffAt                    DateTime
+  ledgerRevision              BigInt
+  provenance                  SnapshotRevisionProvenance
+  valuationStatus             SnapshotValuationStatus
+  reconciliationStatus        SnapshotReconciliationStatus
+  totalValueUsd               Decimal?                     @db.Decimal(65, 30)
+  knownValueUsd               Decimal                      @db.Decimal(65, 30)
+  netExternalFlowUsd          Decimal?                     @db.Decimal(65, 30)
+  feesUsd                     Decimal?                     @db.Decimal(65, 30)
+  priceMovementUsd            Decimal?                     @db.Decimal(65, 30)
+  eventValuationAdjustmentUsd Decimal?                     @db.Decimal(65, 30)
+  marketMovementUsd           Decimal?                     @db.Decimal(65, 30)
+  actor                       String                       @db.VarChar(160)
+  reason                      String?                      @db.VarChar(500)
+  priceRetrievedAt            DateTime
+  createdAt                   DateTime                     @default(now())
+  activeForSnapshot           PortfolioSnapshot?           @relation("ActivePortfolioSnapshotRevision")
+  positions                   PositionSnapshot[]
+  contributions               CoinSnapshotContribution[]
+
+  @@unique([id, userId])
+  @@unique([snapshotId, userId, revision])
+  @@index([userId, cutoffAt])
+  @@index([snapshotId, revision])
+}
+
+model PositionSnapshot {
+  id                 String                      @id @default(cuid())
+  snapshotRevision   PortfolioSnapshotRevision   @relation(fields: [snapshotRevisionId, userId], references: [id, userId], onDelete: Restrict, onUpdate: Cascade)
+  snapshotRevisionId String
+  user               UserAsset                   @relation(fields: [userAssetId, userId], references: [id, userId], onDelete: Restrict, onUpdate: Cascade)
+  userAssetId        String
+  userId             String
+  assetId            String                      @db.VarChar(160)
+  quantity           Decimal                     @db.Decimal(65, 30)
+  priceUsd           Decimal?                    @db.Decimal(65, 30)
+  valueUsd           Decimal?                    @db.Decimal(65, 30)
+  priceObservedAt    DateTime?
+  priceQuality       SnapshotPriceQuality
+  missingReason      SnapshotPriceMissingReason?
+  createdAt          DateTime                    @default(now())
+
+  @@unique([snapshotRevisionId, userAssetId])
+  @@index([userId, userAssetId, snapshotRevisionId])
+  @@index([snapshotRevisionId, assetId])
+}
+
+model CoinSnapshotContribution {
+  id                          String                    @id @default(cuid())
+  snapshotRevision            PortfolioSnapshotRevision @relation(fields: [snapshotRevisionId, userId], references: [id, userId], onDelete: Restrict, onUpdate: Cascade)
+  snapshotRevisionId          String
+  userId                      String
+  assetId                     String                    @db.VarChar(160)
+  externalFlowUsd             Decimal?                  @db.Decimal(65, 30)
+  feesUsd                     Decimal?                  @db.Decimal(65, 30)
+  priceMovementUsd            Decimal?                  @db.Decimal(65, 30)
+  eventValuationAdjustmentUsd Decimal?                  @db.Decimal(65, 30)
+  marketMovementUsd           Decimal?                  @db.Decimal(65, 30)
+  createdAt                   DateTime                  @default(now())
+
+  @@unique([snapshotRevisionId, assetId])
+  @@index([userId, assetId, snapshotRevisionId])
+}
+
+model SnapshotRecalculationRequest {
+  user               User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  userId             String   @id
+  earliestAffectedAt DateTime
+  ledgerRevision     BigInt
+  requestedAt        DateTime @default(now())
+
+  @@index([earliestAffectedAt, requestedAt])
+}
+
+model PortfolioPreference {
+  userId           String  @id
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  minimumImpactUsd Decimal @default(10) @db.Decimal(16, 2)
+}
+
+model AllocationTarget {
+  userAssetId String
+  userId      String
+  position    UserAsset @relation(fields: [userAssetId, userId], references: [id, userId], onDelete: Cascade)
+  minimumPct  Decimal   @db.Decimal(5, 2)
+  maximumPct  Decimal   @db.Decimal(5, 2)
+
+  @@id([userAssetId, userId])
+  @@index([userId])
+}
+
+model StressScenario {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String          @db.VarChar(80)
+  archivedAt DateTime?
+  updatedAt  DateTime        @updatedAt
+  shocks     ScenarioShock[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt, updatedAt])
+}
+
+model ScenarioShock {
+  scenarioId String
+  userId     String
+  assetId    String         @db.VarChar(160)
+  scenario   StressScenario @relation(fields: [scenarioId, userId], references: [id, userId], onDelete: Cascade)
+  percent    Decimal        @db.Decimal(7, 2)
+
+  @@id([scenarioId, assetId])
+  @@index([userId])
 }

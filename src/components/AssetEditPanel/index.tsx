@@ -50,7 +50,9 @@ type AssetEditPanelProps = {
   assetName: string;
   coinId: string;
   coinName: string;
-  amount: number;
+  amount: string;
+  version: Date;
+  quantityEditable: boolean;
   formAction: (
     previousState: AssetActionState,
     formData: FormData,
@@ -65,6 +67,8 @@ export default function AssetEditPanel({
   coinId,
   coinName,
   amount,
+  version,
+  quantityEditable,
   formAction,
   open,
   onOpenChange,
@@ -92,6 +96,7 @@ export default function AssetEditPanel({
           ) : null}
           <input type="hidden" name="id" value={assetId} />
           <input type="hidden" name="coin" value={coinId} />
+          <input type="hidden" name="version" value={version.toISOString()} />
           <div className="grid gap-2">
             <Label htmlFor="name">Alias</Label>
             <Input
@@ -127,10 +132,16 @@ export default function AssetEditPanel({
               min="0.000000000000000001"
               step="any"
               required
+              readOnly={!quantityEditable}
               defaultValue={amount}
               aria-invalid={Boolean(state.fieldErrors?.amount)}
             />
             <FieldError message={state.fieldErrors?.amount} />
+            {!quantityEditable ? (
+              <p className="text-xs text-muted-foreground">
+                Record a transaction to change this balance.
+              </p>
+            ) : null}
           </div>
           <Buttons
             cancelLabel="Cancel"

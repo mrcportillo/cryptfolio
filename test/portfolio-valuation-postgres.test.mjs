@@ -17,6 +17,10 @@ import {
 } from "../src/services/portfolio-valuation/postgres.ts";
 import { runPortfolioSnapshotScheduler } from "../src/services/portfolio-valuation/scheduler.ts";
 import {
+  readDailyReport,
+  readWeeklyReport,
+} from "../src/services/portfolio-valuation/reports.ts";
+import {
   adoptionSnapshotTarget,
   capturePortfolioSnapshot,
   dailySnapshotTarget,
@@ -1013,6 +1017,79 @@ if (!configuredUrl) {
             status: "COMPLETE",
             staleAt: null,
           });
+        },
+      );
+
+      await t.test(
+        "daily and weekly report reads reconcile without mutations and stay owner scoped",
+        async () => {
+          const ownerId = "auth0|reports-owner";
+          const adoptedAt = new Date("2026-08-24T12:00:00Z");
+          await createAdoptedOwner(client, {
+            ownerId,
+            ownerPositionId: "reports-btc",
+            ownerEmail: "reports@example.com",
+            ownerAdoptionAt: adoptedAt.toISOString(),
+          });
+          const historical = {
+            async resolve(_coin, at) {
+              return { observation: { observedAt: at, priceUsd: "100" } };
+            },
+          };
+          const now = new Date("2026-08-31T04:00:00Z");
+          await runOwnerScheduler(client, historical, ownerId, now);
+          const markets = async () => ({
+            markets: [
+              {
+                id: "bitcoin",
+                current_price: 110,
+                last_updated: now.toISOString(),
+              },
+            ],
+            usedFallback: false,
+            providerFailed: false,
+          });
+          const before = [
+            await client.portfolioEvent.count(),
+            await client.portfolioSnapshotRevision.count(),
+          ];
+          const daily = await readDailyReport(
+            client,
+            ownerId,
+            now,
+            markets,
+            historical,
+          );
+          assert.equal(daily.calculation.marketMovementUsd, "20");
+          const weekly = await readWeeklyReport(
+            client,
+            ownerId,
+            "2026-08-24",
+            now,
+            markets,
+            historical,
+          );
+          assert.equal(weekly.window.limited, true);
+          assert.equal(weekly.report.calculation.status, "COMPLETE");
+          assert.equal(weekly.report.calculation.marketMovementUsd, "0");
+          assert.equal(
+            await readWeeklyReport(
+              client,
+              "missing-owner",
+              "2026-08-24",
+              now,
+              markets,
+              historical,
+            ),
+            null,
+          );
+          assert.deepEqual(
+            [
+              await client.portfolioEvent.count(),
+              await client.portfolioSnapshotRevision.count(),
+            ],
+            before,
+          );
         },
       );
 

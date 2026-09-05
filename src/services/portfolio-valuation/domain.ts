@@ -25,6 +25,7 @@ export type PriceQuality =
   | "HISTORICAL_ESTIMATE"
   | "MISSING";
 export type PriceMissingReason =
+  | "MISSING_CREDENTIAL"
   | "RATE_LIMITED"
   | "PROVIDER_UNAVAILABLE"
   | "UNKNOWN_COIN"

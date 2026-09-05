@@ -13,6 +13,7 @@ import { getPortfolioHomeData } from "@/utils/db-api";
 import type { CoinOption } from "@/types/coin";
 import { calculateLivePortfolioWorth } from "@/services/portfolio-valuation/live";
 import { createValuationMarketLoader } from "@/services/portfolio-valuation/market-cache";
+import DailyPulse from "@/components/portfolio/DailyPulse";
 
 const ASSET_PAGE_SIZE = 50;
 const loadMarkets = createValuationMarketLoader(listMarketByIds);
@@ -71,6 +72,17 @@ export default async function Home({ searchParams }: HomeProps) {
       <div className="mb-6">
         <UserPortfolioValue valuation={valuation} />
       </div>
+      {assetsPage.ledgerAdopted && (
+        <Suspense
+          fallback={
+            <p role="status" className="mb-6 p-5 text-sm text-slate-600">
+              Calculating daily performance…
+            </p>
+          }
+        >
+          <DailyPulse userId={user.id} />
+        </Suspense>
+      )}
       <Suspense
         fallback={
           <div className="mb-2 flex flex-wrap items-center gap-4">

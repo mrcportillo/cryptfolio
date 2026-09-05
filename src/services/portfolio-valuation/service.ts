@@ -41,6 +41,8 @@ export type PreviousSnapshotPosition = SnapshotPositionState & {
 
 export type PreviousSnapshotState = {
   revisionId?: string;
+  provenance?: SnapshotProvenance;
+  estimated?: boolean;
   kind: SnapshotKind;
   cutoffAt: Date;
   totalValueUsd: string | null;
@@ -447,6 +449,21 @@ async function captureOnce(
     );
   }
 
+  const draft = await buildValuationDraft(state, priceSource, input);
+  return {
+    draft,
+    published: input.apply === false ? null : await store.publish(draft),
+  };
+}
+
+/** Shared read-only calculation for stored snapshots and live report endpoints. */
+export async function buildValuationDraft(
+  state: SnapshotCaptureState,
+  priceSource: SnapshotPriceSource,
+  input: CaptureSnapshotInput,
+): Promise<SnapshotDraft> {
+  const now = dateCopy(input.now ?? new Date());
+  const reason = input.reason?.trim() || null;
   const priceRetrievedAt = new Date(now);
   const prices = await resolvePrices(
     priceSource,
@@ -603,8 +620,5 @@ async function captureOnce(
     contributions,
   };
 
-  return {
-    draft,
-    published: input.apply === false ? null : await store.publish(draft),
-  };
+  return draft;
 }

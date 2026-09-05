@@ -153,6 +153,10 @@ async function readPrevious(
   if (!previous?.activeRevision) return null;
   return {
     revisionId: previous.activeRevision.id,
+    provenance: previous.activeRevision.provenance,
+    estimated: previous.activeRevision.positions.some(
+      (position) => position.priceQuality !== "OBSERVED",
+    ),
     kind: previous.kind,
     cutoffAt: previous.activeRevision.cutoffAt,
     totalValueUsd: decimal(previous.activeRevision.totalValueUsd),

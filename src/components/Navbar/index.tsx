@@ -100,6 +100,12 @@ export default function NavBar() {
       >
         Transactions
       </NavItem>
+      <NavItem
+        path="/reports/weekly"
+        active={currentPath.startsWith("/reports")}
+      >
+        Reports
+      </NavItem>
       <RightContainer>
         {user?.picture ? (
           <UserAvatar src={user.picture} alt={user.name ?? "User profile"} />

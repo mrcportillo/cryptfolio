@@ -2,11 +2,26 @@
 title: "feat: Add personal portfolio intelligence"
 type: feat
 date: 2026-08-20
-status: in_progress
+status: complete
 adr: ../adr/0001-transaction-ledger-and-portfolio-valuation.md
 ---
 
 # feat: Add personal portfolio intelligence
+
+## Delivery record · 2026-09-05
+
+All eight implementation slices are committed and pushed in PR #15. Issue #10
+was completed in `89ce605`; #11–#12 in `a9d194d`; #13–#14 and final report/form
+hardening in `7dcffd2`. Dependency maintenance #16 was completed in `3aa0be4`.
+
+Verification: 157 offline tests, 48 disposable PostgreSQL checks, no Prisma drift,
+TypeScript, ESLint, and env-free production build passed. Browser checks use
+synthetic data and cover responsive layouts, keyboard operation, validation,
+pending fields, and input retention. See `docs/review/insights/README.md`.
+
+Implementation completion does not indicate production rollout. The Vercel preview
+failure and hosted/Auth0 verification remain open in #17. No production migration,
+adoption, snapshot apply, merge, or deployment was performed.
 
 ## Overview
 
@@ -284,11 +299,11 @@ Add scheduled snapshots, missed-day repair, live current valuation, and reconcil
 
 **Acceptance criteria**
 
-- Worth changes when prices change without any transaction.
-- Daily snapshots are idempotent and use the configured reporting boundary.
-- Total change reconciles into external flow, fees, and market movement.
-- Per-coin contributions sum to total market movement within tolerance.
-- Missing prices yield an incomplete report, never a false zero.
+- [x] Worth changes when prices change without any transaction.
+- [x] Daily snapshots are idempotent and use the configured reporting boundary.
+- [x] Total change reconciles into external flow, fees, and market movement.
+- [x] Per-coin contributions sum to total market movement within tolerance.
+- [x] Missing prices yield an incomplete report, never a false zero.
 
 ### 5. Add daily portfolio pulse
 
@@ -296,9 +311,9 @@ Turn the home summary into a concise daily explanation with current worth, marke
 
 **Acceptance criteria**
 
-- Daily totals distinguish transactions from market movement.
-- The most materially positive and negative coin contributions are visible.
-- Estimated, stale, and incomplete states are understandable and accessible.
+- [x] Daily totals distinguish transactions from market movement.
+- [x] The most materially positive and negative coin contributions are visible.
+- [x] Estimated, stale, and incomplete states are understandable and accessible.
 
 ### 6. Add weekly portfolio debrief
 
@@ -306,10 +321,10 @@ Add a weekly report using the same reconciliation engine, with allocation change
 
 **Acceptance criteria**
 
-- Current and prior post-adoption weeks can be viewed.
-- Starting worth, flows, fees, market movement, and ending worth reconcile.
-- Per-coin contribution and allocation change are shown.
-- Weeks crossing the adoption boundary are clearly limited or unavailable.
+- [x] Current and prior post-adoption weeks can be viewed.
+- [x] Starting worth, flows, fees, market movement, and ending worth reconcile.
+- [x] Per-coin contribution and allocation change are shown.
+- [x] Weeks crossing the adoption boundary are clearly limited or unavailable.
 
 ### 7. Add personalized tremors and allocation gravity
 
@@ -317,10 +332,10 @@ Weight market moves by personal USD impact and add quiet target allocation range
 
 **Acceptance criteria**
 
-- Tremors are ordered by personal impact, not generic percentage movement.
-- Thresholds suppress immaterial noise.
-- Each target accepts valid minimum and maximum percentages.
-- Drift shows hypothetical adjustment only and never executes a trade.
+- [x] Tremors are ordered by personal impact, not generic percentage movement.
+- [x] Thresholds suppress immaterial noise.
+- [x] Each target accepts valid minimum and maximum percentages.
+- [x] Drift shows hypothetical adjustment only and never executes a trade.
 
 ### 8. Add saved stress scenarios
 
@@ -328,10 +343,10 @@ Allow named multi-coin shocks to run against the current derived portfolio.
 
 **Acceptance criteria**
 
-- Scenarios can be created, edited, run, and archived.
-- Results show total and per-coin hypothetical impact.
-- Running a scenario never changes ledger, holdings, or snapshots.
-- Missing live prices produce a partial/incomplete result rather than zero impact.
+- [x] Scenarios can be created, edited, run, and archived.
+- [x] Results show total and per-coin hypothetical impact.
+- [x] Running a scenario never changes ledger, holdings, or snapshots.
+- [x] Missing live prices produce a partial/incomplete result rather than zero impact.
 
 ## Delivery order
 

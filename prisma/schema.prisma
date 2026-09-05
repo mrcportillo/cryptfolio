@@ -18,6 +18,8 @@ model User {
   portfolioEvents              PortfolioEvent[]
   portfolioSnapshots           PortfolioSnapshot[]
   snapshotRecalculationRequest SnapshotRecalculationRequest?
+  portfolioPreference          PortfolioPreference?
+  stressScenarios              StressScenario[]
 }
 
 model UserAsset {
@@ -34,6 +36,7 @@ model UserAsset {
   movements              AssetMovement[]
   openingEvent           PortfolioEvent?
   positionSnapshots      PositionSnapshot[]
+  allocationTarget       AllocationTarget?
 
   @@unique([id, userId])
   @@index([userId, date])
@@ -257,4 +260,45 @@ model SnapshotRecalculationRequest {
   requestedAt        DateTime @default(now())
 
   @@index([earliestAffectedAt, requestedAt])
+}
+
+model PortfolioPreference {
+  userId           String  @id
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  minimumImpactUsd Decimal @default(10) @db.Decimal(16, 2)
+}
+
+model AllocationTarget {
+  userAssetId String
+  userId      String
+  position    UserAsset @relation(fields: [userAssetId, userId], references: [id, userId], onDelete: Cascade)
+  minimumPct  Decimal   @db.Decimal(5, 2)
+  maximumPct  Decimal   @db.Decimal(5, 2)
+
+  @@id([userAssetId, userId])
+  @@index([userId])
+}
+
+model StressScenario {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String          @db.VarChar(80)
+  archivedAt DateTime?
+  updatedAt  DateTime        @updatedAt
+  shocks     ScenarioShock[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt, updatedAt])
+}
+
+model ScenarioShock {
+  scenarioId String
+  userId     String
+  assetId    String         @db.VarChar(160)
+  scenario   StressScenario @relation(fields: [scenarioId, userId], references: [id, userId], onDelete: Cascade)
+  percent    Decimal        @db.Decimal(7, 2)
+
+  @@id([scenarioId, assetId])
+  @@index([userId])
 }

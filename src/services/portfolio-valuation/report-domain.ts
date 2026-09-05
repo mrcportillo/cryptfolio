@@ -58,8 +58,9 @@ export function allocationPercent(
   if (value === null || total === null || compareDecimals(total, "0") === 0)
     return null;
   // Percentage rounded to two decimal places for display only.
-  const hundredths =
-    (decimalToUnits(value) * BigInt(10000)) / decimalToUnits(total);
+  const numerator = decimalToUnits(value) * BigInt(10000);
+  const denominator = decimalToUnits(total);
+  const hundredths = (numerator + denominator / BigInt(2)) / denominator;
   return (
     (hundredths / BigInt(100)).toString() +
     "." +

@@ -272,9 +272,17 @@ export async function readWeeklyReport(
   if (live?.draft) {
     const expectedStart =
       periods.at(-1)?.target.cutoffAt ?? window.effectiveStart;
+    const expectedRevisionId = periods.length
+      ? rows.find(
+          (row) =>
+            row.kind === "DAILY" &&
+            row.activeRevision?.cutoffAt.getTime() === expectedStart.getTime(),
+        )?.activeRevision?.id
+      : start?.revisionId;
     if (
       live.startedAt?.getTime() === expectedStart.getTime() &&
-      live.draft.ledgerRevision === user.ledgerRevision
+      live.draft.ledgerRevision === user.ledgerRevision &&
+      live.draft.expectedPreviousRevisionId === expectedRevisionId
     )
       periods.push(live.draft);
     else missing.push("current period");

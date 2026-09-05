@@ -57,6 +57,7 @@ test("unknown values and stale snapshots cannot become complete performance", ()
   );
   assert.equal(allocationPercent("10", null), null);
   assert.equal(allocationPercent("0", "0"), null);
+  assert.equal(allocationPercent("2", "3"), "66.67");
 });
 
 test("week boundaries use Salta Mondays and limit the first adoption week", () => {

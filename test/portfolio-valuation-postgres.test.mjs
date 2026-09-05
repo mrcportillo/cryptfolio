@@ -5,6 +5,15 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { PrismaClient } from "@prisma/client";
+import {
+  saveImpactThreshold,
+  saveAllocationTarget,
+  saveScenario,
+  archiveScenario,
+  listOwnedScenarios,
+  readOwnedInsights,
+} from "../src/services/portfolio-insights/store.ts";
+import { runStressScenario } from "../src/services/portfolio-insights/domain.ts";
 import { runOpeningBalanceConversion } from "../scripts/portfolio-ledger/opening-balances-lib.mjs";
 import { createPostgresOpeningBalanceStore } from "../scripts/portfolio-ledger/opening-balances.mjs";
 import { createPostgresTransactionStore } from "../src/services/portfolio-transactions/postgres.ts";
@@ -1072,6 +1081,16 @@ if (!configuredUrl) {
           assert.equal(weekly.window.limited, true);
           assert.equal(weekly.report.calculation.status, "COMPLETE");
           assert.equal(weekly.report.calculation.marketMovementUsd, "0");
+          const currentWeek = await readWeeklyReport(
+            client,
+            ownerId,
+            undefined,
+            now,
+            markets,
+            historical,
+          );
+          assert.equal(currentWeek.report.calculation.status, "COMPLETE");
+          assert.equal(currentWeek.report.calculation.marketMovementUsd, "20");
           assert.equal(
             await readWeeklyReport(
               client,
@@ -1090,6 +1109,172 @@ if (!configuredUrl) {
             ],
             before,
           );
+          let repairedDuringRead = false;
+          const racedWeek = await readWeeklyReport(
+            client,
+            ownerId,
+            undefined,
+            now,
+            async () => {
+              if (!repairedDuringRead) {
+                repairedDuringRead = true;
+                await capturePortfolioSnapshot(
+                  createPostgresSnapshotStore(client),
+                  historical,
+                  {
+                    userId: ownerId,
+                    target: dailySnapshotTarget("2026-08-30"),
+                    provenance: "REPAIR",
+                    actor: "report-race-test",
+                    reason:
+                      "Repair the current week boundary during its live read",
+                    apply: true,
+                    now,
+                  },
+                );
+              }
+              return markets();
+            },
+            historical,
+          );
+          assert.equal(racedWeek.report.calculation, null);
+          assert.match(racedWeek.report.message, /current period/);
+        },
+      );
+
+      await t.test(
+        "insight settings and scenario lifecycle enforce ownership and never write financial history",
+        async () => {
+          const ownerId = "auth0|insights-owner";
+          const otherId = "auth0|insights-other";
+          for (const [id, email] of [
+            [ownerId, "insights@example.com"],
+            [otherId, "insights-other@example.com"],
+          ])
+            await createAdoptedOwner(client, {
+              ownerId: id,
+              ownerPositionId: id + "-btc",
+              ownerEmail: email,
+              ownerAdoptionAt: "2026-08-24T12:00:00.000Z",
+            });
+          const counts = async () => [
+            await client.portfolioEvent.count(),
+            await client.assetMovement.count(),
+            await client.portfolioSnapshotRevision.count(),
+          ];
+          const before = await counts();
+          await saveImpactThreshold(client, ownerId, "25");
+          await saveAllocationTarget(
+            client,
+            ownerId,
+            ownerId + "-btc",
+            "60",
+            "80",
+          );
+          await assert.rejects(
+            saveAllocationTarget(client, otherId, ownerId + "-btc", "10", "20"),
+            /unavailable/,
+          );
+          await assert.rejects(
+            saveAllocationTarget(client, ownerId, ownerId + "-btc", "90", "80"),
+          );
+          const key = randomUUID();
+          const id = await saveScenario(
+            client,
+            ownerId,
+            null,
+            "Crash",
+            [{ assetId: "bitcoin", percent: "-50" }],
+            key,
+          );
+          assert.equal(
+            await saveScenario(
+              client,
+              ownerId,
+              null,
+              "Crash",
+              [{ assetId: "bitcoin", percent: "-50" }],
+              key,
+            ),
+            id,
+          );
+          assert.equal((await listOwnedScenarios(client, ownerId)).length, 1);
+          assert.deepEqual(await listOwnedScenarios(client, otherId), []);
+          await assert.rejects(
+            saveScenario(client, otherId, id, "Foreign edit", [
+              { assetId: "bitcoin", percent: "-10" },
+            ]),
+            /unavailable/,
+          );
+          await assert.rejects(
+            archiveScenario(client, otherId, id),
+            /unavailable/,
+          );
+          await saveScenario(client, ownerId, id, "Deep crash", [
+            { assetId: "bitcoin", percent: "-80" },
+            { assetId: "ethereum", percent: "20" },
+          ]);
+          const now = new Date("2026-08-31T04:00:00Z");
+          const data = await readOwnedInsights(
+            client,
+            ownerId,
+            async () => ({
+              markets: [
+                {
+                  id: "bitcoin",
+                  current_price: 100,
+                  last_updated: now.toISOString(),
+                  price_change_percentage_24h: 100,
+                },
+              ],
+              providerFailed: false,
+              usedFallback: false,
+            }),
+            now,
+          );
+          assert.equal(data.minimumImpactUsd, "25");
+          assert.equal(data.drift[0].status, "ABOVE");
+          assert.equal(data.drift[0].adjustmentUsd, "-40");
+          const scenario = (await listOwnedScenarios(client, ownerId))[0];
+          assert.equal(
+            runStressScenario(data.valuation, scenario.shocks)
+              .projectedValueUsd,
+            "40",
+          );
+          await assert.rejects(
+            client.scenarioShock.create({
+              data: {
+                scenarioId: id,
+                userId: otherId,
+                assetId: "foreign",
+                percent: "10",
+              },
+            }),
+            /foreign key/i,
+          );
+          await assert.rejects(
+            client.$executeRawUnsafe(
+              'UPDATE "AllocationTarget" SET "minimumPct" = \'NaN\' WHERE "userId" = $1',
+              ownerId,
+            ),
+            /check constraint/i,
+          );
+          await assert.rejects(
+            client.$executeRawUnsafe(
+              'UPDATE "ScenarioShock" SET "percent" = -101 WHERE "scenarioId" = $1',
+              id,
+            ),
+            /check constraint/i,
+          );
+          await archiveScenario(client, ownerId, id);
+          assert.deepEqual(await listOwnedScenarios(client, ownerId), []);
+          await assert.rejects(
+            saveScenario(client, ownerId, id, "Archived", [
+              { assetId: "bitcoin", percent: "0" },
+            ]),
+            /unavailable/,
+          );
+          assert.deepEqual(await counts(), before);
         },
       );
 

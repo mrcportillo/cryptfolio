@@ -148,6 +148,22 @@ export function absoluteDifference(left: string, right: string): string {
   return unitsToDecimal(difference < ZERO ? -difference : difference);
 }
 
+/** Scale-30 division, rounding half away from zero. */
+export function divideDecimals(left: string, right: string): string {
+  const numerator = decimalToUnits(left) * SCALE_FACTOR;
+  const denominator = decimalToUnits(right);
+  if (denominator === ZERO)
+    throw new LedgerDecimalError("Cannot divide by zero.");
+  const negative = numerator < ZERO !== denominator < ZERO;
+  const magnitude = numerator < ZERO ? -numerator : numerator;
+  const divisor = denominator < ZERO ? -denominator : denominator;
+  let quotient = magnitude / divisor;
+  if ((magnitude % divisor) * BigInt(2) >= divisor) quotient += BigInt(1);
+  const value = unitsToDecimal(negative ? -quotient : quotient);
+  decimalToUnits(value);
+  return value;
+}
+
 export function sumDecimals(values: Iterable<string>): string {
   let total = ZERO;
   for (const value of values) total += decimalToUnits(value);

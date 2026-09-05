@@ -2,8 +2,9 @@
 
 This runbook deploys and operates issue #10's live portfolio valuation, stable
 daily snapshots, adoption baseline, and exact market-movement reconciliation.
-It does not enable the daily pulse, weekly report, tremors, allocation ranges,
-or stress scenarios from later milestone issues.
+The daily pulse, weekly report, tremors, allocation ranges, and stress scenarios
+build on this foundation. Continue with `portfolio-experiences.md` for their
+additional migration and verification steps.
 
 ## Contract
 

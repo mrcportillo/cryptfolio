@@ -3,7 +3,7 @@ import type { CoinMarketItem } from "../coin/types.ts";
 import { calculateLiveValuation, type LiveValuation } from "./domain.ts";
 
 export function calculateLivePortfolioWorth(
-  holdings: readonly { assetId: string; amount: string }[],
+  holdings: readonly { assetId: string; amount: string; positionId?: string }[],
   markets: readonly CoinMarketItem[],
   options: { requestedAt?: Date; providerFailed?: boolean } = {},
 ): LiveValuation {
@@ -23,7 +23,7 @@ export function calculateLivePortfolioWorth(
         observedAt != null &&
         !Number.isNaN(observedAt.getTime());
       return {
-        positionId: holding.assetId,
+        positionId: holding.positionId ?? holding.assetId,
         assetId: holding.assetId,
         quantity: holding.amount,
         priceUsd: validObservation ? normalizeFiniteNumber(price) : null,

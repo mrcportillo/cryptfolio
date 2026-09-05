@@ -14,6 +14,7 @@ import type { CoinOption } from "@/types/coin";
 import { calculateLivePortfolioWorth } from "@/services/portfolio-valuation/live";
 import { createValuationMarketLoader } from "@/services/portfolio-valuation/market-cache";
 import DailyPulse from "@/components/portfolio/DailyPulse";
+import AllocationWarnings from "@/components/portfolio/AllocationWarnings";
 
 const ASSET_PAGE_SIZE = 50;
 const loadMarkets = createValuationMarketLoader(listMarketByIds);
@@ -81,6 +82,11 @@ export default async function Home({ searchParams }: HomeProps) {
           }
         >
           <DailyPulse userId={user.id} />
+        </Suspense>
+      )}
+      {assetsPage.ledgerAdopted && (
+        <Suspense fallback={null}>
+          <AllocationWarnings userId={user.id} />
         </Suspense>
       )}
       <Suspense

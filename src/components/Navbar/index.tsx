@@ -107,6 +107,9 @@ export default function NavBar() {
         Reports
       </NavItem>
       <RightContainer>
+        <NavItem path="/scenarios" active={currentPath === "/scenarios"}>
+          Scenarios
+        </NavItem>
         {user?.picture ? (
           <UserAvatar src={user.picture} alt={user.name ?? "User profile"} />
         ) : user ? (

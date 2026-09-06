@@ -231,8 +231,12 @@ The scheduler interleaves missing dates and stale/incomplete revisions in
 chronological order. Each invocation processes at most seven daily targets per
 owner (the six oldest pending dates and the latest pending date), plus the
 adoption baseline, and stops starting work after four minutes. The route allows
-five minutes for the final capture to finish. Verify that the deployment uses
-Vercel Fluid Compute with a 300-second function duration before enabling cron.
+five minutes for the final capture to finish. The repository enables
+[Vercel Fluid Compute](https://vercel.com/docs/project-configuration/vercel-json#fluid)
+in `vercel.json` so older projects also support this budget. Verify that the
+deployment uses Fluid Compute with a 300-second function duration before enabling
+cron. A successful Next.js build alone does not verify this: incompatible function
+limits can reject the subsequent output deployment.
 Further catch-up remains discoverable on the next invocation or through the
 manual command. Repairs and newly filled gaps also invalidate later attribution.
 

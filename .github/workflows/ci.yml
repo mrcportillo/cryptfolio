@@ -1,0 +1,90 @@
+name: Portfolio CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Tests, database invariants, and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: cryptfolio_test
+          POSTGRES_PASSWORD: cryptfolio_test
+          POSTGRES_DB: cryptfolio_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cryptfolio_test -d cryptfolio_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out the proposed code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Set up the package.json pnpm version
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          cache: true
+          run_install: false
+
+      - name: Install locked dependencies and generate Prisma client
+        run: pnpm install --frozen-lockfile
+
+      - name: Offline tests
+        run: pnpm test
+
+      - name: Install PostgreSQL client for catalog verification
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Database migrations, ownership, and financial invariants
+        # These credentials belong only to this job's disposable service. The
+        # test harnesses require loopback, a safe database name, and unique schemas.
+        env:
+          CRYPTFOLIO_LEDGER_TEST_DATABASE_URL: postgresql://cryptfolio_test:cryptfolio_test@127.0.0.1:5432/cryptfolio_test
+          CRYPTFOLIO_VALUATION_TEST_DATABASE_URL: postgresql://cryptfolio_test:cryptfolio_test@127.0.0.1:5432/cryptfolio_test
+        run: |
+          pnpm test:ledger-postgres
+          pnpm test:transactions-postgres
+          pnpm test:valuation-postgres
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Audit production dependencies
+        run: pnpm run audit
+
+      - name: Build without application credentials
+        run: pnpm build

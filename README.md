@@ -4,7 +4,7 @@ Cryptfolio is a Next.js application for tracking cryptocurrency holdings. It use
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 24 (used by CI)
 - pnpm 11
 - PostgreSQL
 - Auth0 Regular Web Application
@@ -49,7 +49,7 @@ The application requires an authenticated Auth0 session. Authentication is handl
 - `pnpm build` — create a production build
 - `pnpm start` — start the production server
 - `pnpm lint` — run ESLint
-- `pnpm test` — run validation and pagination tests
+- `pnpm test` — run the offline ownership, ledger, valuation, report, and insight tests
 - `pnpm test:ledger-postgres` — run opt-in ledger integration tests against an explicitly supplied disposable local PostgreSQL database
 - `pnpm test:transactions-postgres` — run opt-in manual-transaction, concurrency, and cutover tests against that disposable database
 - `pnpm run audit` — audit production dependencies
@@ -57,7 +57,26 @@ The application requires an authenticated Auth0 session. Authentication is handl
 - `pnpm valuation:snapshot -- --help` — preview/apply a daily snapshot or append a documented repair revision
 - `pnpm test:valuation-postgres` — run opt-in valuation, idempotency, and correction-invalidation checks against an explicitly supplied disposable local PostgreSQL database
 
-The current Next.js release line has a moderate PostCSS advisory reported for its pinned nested PostCSS dependency. Avoid forcing an automated audit fix that downgrades Next.js; re-evaluate upgrades when the Next.js release line publishes a compatible PostCSS update.
+Run `pnpm run audit` to check current production advisories. Keep dependency fixes
+within the supported framework version and update the lockfile deliberately.
+
+## Continuous integration
+
+The `Portfolio CI` workflow runs on pull requests, pushes to `main`, and manual
+dispatch. It installs the locked dependencies with the pnpm version declared in
+`package.json`, then runs offline tests, all three PostgreSQL suites, typecheck,
+lint, the production dependency audit, and a production build without application
+credentials. Official setup actions are pinned to commits.
+
+Database checks use a disposable PostgreSQL 15 service and uniquely named schemas.
+The workflow passes only local test URLs to those steps; it does not need Auth0,
+CoinGecko, Vercel, or production database secrets. The separate PostgreSQL commands
+require their test databases and fail instead of silently skipping.
+
+Open the failed step in GitHub Actions to inspect its diagnostics. A green CI run
+verifies code and database invariants; hosted Auth0 callbacks, deployment settings,
+and the controlled production cutover still require their runbook checks. Vercel's
+deployment check remains separate.
 
 ## Data model and database changes
 
@@ -80,6 +99,9 @@ explicitly frozen. The manual-event contract and verification queries are in
 Daily snapshot configuration, manual repair, reconciliation checks, and
 forward-only rollback are documented in
 [`docs/operations/daily-valuation.md`](docs/operations/daily-valuation.md).
+Daily/weekly reports, personal impact, allocation ranges, and hypothetical
+scenarios are covered by
+[`docs/operations/portfolio-experiences.md`](docs/operations/portfolio-experiences.md).
 
 The PostgreSQL ledger integration suite never reads `.env.local`. Supply
 `CRYPTFOLIO_LEDGER_TEST_DATABASE_URL` explicitly; the harness refuses

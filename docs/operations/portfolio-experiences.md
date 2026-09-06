@@ -79,6 +79,10 @@ to the last verified revision while retaining the additive tables and immutable
 financial evidence. Do not delete history to clear an error.
 
 Local validation uses disposable PostgreSQL and synthetic browser fixtures.
-Full Auth0 and deployed-environment verification remains a rollout check. The
-Vercel preview was failing on `a9d194d`; the available CLI login could not access
-its configured account, so its build logs could not be inspected in this session.
+Full Auth0 and deployed-environment verification remains a rollout check. Vercel
+preview deployment was restored in `cc2087a` by enabling Fluid Compute in
+`vercel.json`; the dashboard confirms the snapshot function's 300-second budget.
+The preview reaches Auth0 login, but callback and authenticated route checks are
+still pending. Configure the missing `CRON_SECRET` only after the database and
+provider readiness checks in `daily-valuation.md`. Issue #17 tracks these remaining
+hosted checks and successful main deployment.

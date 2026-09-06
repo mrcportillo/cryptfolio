@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p1
 issue_id: "004"
 tags: [deployment, vercel, portfolio]
@@ -33,9 +33,9 @@ database readiness, and production rollout separately in issue #17.
 
 - [x] Inspect authenticated Vercel logs and effective function settings.
 - [x] Apply the documented repository configuration and update the runbook.
-- [ ] The updated PR passes Portfolio CI and Vercel deployment checks.
-- [ ] The preview reports Fluid Compute enabled and a 300-second cron duration.
-- [ ] Record preview smoke checks and update GitHub tracking with remaining work.
+- [x] The updated PR passes Portfolio CI and Vercel deployment checks.
+- [x] The preview reports Fluid Compute enabled and a 300-second cron duration.
+- [x] Record preview smoke checks and remaining rollout work for issue #17.
 
 ## Work Log
 
@@ -44,3 +44,19 @@ database readiness, and production rollout separately in issue #17.
 The user opened the authenticated Vercel console. The observed deployment failure
 and disabled Fluid Compute point to the snapshot duration configuration. Added
 the per-deployment opt-in to PR #19 for hosted verification.
+
+### Hosted verification
+
+Commit `cc2087a` passed Portfolio CI:
+https://github.com/mrcportillo/cryptfolio/actions/runs/34039280024.
+Vercel deployment `BJb8PxzeaLnNy38KVe9rci8Lqi99` reached Ready in 1m 33s:
+https://vercel.com/mrcportillos-projects/cryptfolio/BJb8PxzeaLnNy38KVe9rci8Lqi99.
+Its runtime settings show Fluid Compute enabled and Resources shows
+`/api/cron/portfolio-snapshots` on Node.js 22 with a 300-second maximum.
+
+The preview root reaches the Auth0 login page. The cron route directly returns
+`Snapshot scheduling is not configured.` without an Auth0 redirect. Environment
+variable names confirm `CRON_SECRET` is absent; secret values were not revealed.
+Authenticated callback/report checks, environment readiness, database migrations,
+and successful main deployment remain rollout work in issue #17. No hosted
+database migration, adoption, or authenticated snapshot invocation was performed.

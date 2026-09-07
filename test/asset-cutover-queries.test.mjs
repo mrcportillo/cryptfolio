@@ -108,6 +108,10 @@ function fixture({ adopted, extraPositions = [], extraEvents = [] }) {
   ];
 
   const transaction = {
+    async $queryRaw(_strings, userId) {
+      const user = await this.user.findUnique({ where: { id: userId } });
+      return user ? [user] : [];
+    },
     user: {
       async findUnique(args) {
         if (args.where.id === owner) {
@@ -128,7 +132,11 @@ function fixture({ adopted, extraPositions = [], extraEvents = [] }) {
             position.userId === args.where.userId,
         );
         if (!result) return null;
-        return args.select ? { id: result.id } : result;
+        return args.select
+          ? Object.fromEntries(
+              Object.keys(args.select).map((key) => [key, result[key]]),
+            )
+          : result;
       },
       async findMany(args) {
         let rows = positions.filter(

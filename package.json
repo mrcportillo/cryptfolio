@@ -12,6 +12,7 @@
     "test": "node --experimental-strip-types --test test/*.test.mjs",
     "test:ledger-postgres": "CRYPTFOLIO_REQUIRE_LEDGER_TEST_DATABASE=1 node --test test/opening-balances-postgres.test.mjs",
     "test:transactions-postgres": "CRYPTFOLIO_REQUIRE_LEDGER_TEST_DATABASE=1 node --experimental-strip-types --test test/portfolio-transactions-postgres.test.mjs",
+    "test:legacy-postgres": "CRYPTFOLIO_REQUIRE_LEDGER_TEST_DATABASE=1 node --experimental-strip-types --test test/legacy-compatibility-postgres.test.mjs",
     "audit": "pnpm audit --prod",
     "ledger:opening-balances": "node scripts/portfolio-ledger/opening-balances.mjs",
     "valuation:snapshot": "node --experimental-strip-types scripts/portfolio-valuation/snapshots.mjs",

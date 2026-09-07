@@ -50,6 +50,7 @@ The application requires an authenticated Auth0 session. Authentication is handl
 - `pnpm start` — start the production server
 - `pnpm lint` — run ESLint
 - `pnpm test` — run the offline ownership, ledger, valuation, report, and insight tests
+- `pnpm test:legacy-postgres` — verify login persistence, holdings, and setup states against the original database schema using the same disposable test database
 - `pnpm test:ledger-postgres` — run opt-in ledger integration tests against an explicitly supplied disposable local PostgreSQL database
 - `pnpm test:transactions-postgres` — run opt-in manual-transaction, concurrency, and cutover tests against that disposable database
 - `pnpm run audit` — audit production dependencies
@@ -64,7 +65,7 @@ within the supported framework version and update the lockfile deliberately.
 
 The `Portfolio CI` workflow runs on pull requests, pushes to `main`, and manual
 dispatch. It installs the locked dependencies with the pnpm version declared in
-`package.json`, then runs offline tests, all three PostgreSQL suites, typecheck,
+`package.json`, then runs offline tests, all four PostgreSQL suites, typecheck,
 lint, the production dependency audit, and a production build without application
 credentials. Official setup actions are pinned to commits.
 
@@ -76,7 +77,11 @@ require their test databases and fail instead of silently skipping.
 Open the failed step in GitHub Actions to inspect its diagnostics. A green CI run
 verifies code and database invariants; hosted Auth0 callbacks, deployment settings,
 and the controlled production cutover still require their runbook checks. Vercel's
-deployment check remains separate.
+deployment check remains separate. Before promoting a release, open authenticated
+`/home` and `/trend` and confirm holdings, market movers, and charts render. A
+streamed Next.js error can return HTTP 200, so checking status codes is insufficient.
+Until ledger adoption, new portfolio pages must show their setup states without
+requiring the additive tables. See the [page recovery runbook](docs/operations/page-recovery.md).
 
 ## Data model and database changes
 

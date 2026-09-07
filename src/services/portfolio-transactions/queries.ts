@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { LedgerValidationError, type StoredLedgerEvent } from "./domain.ts";
 import { databaseDecimalToPlain } from "./decimal.ts";
+import { readLedgerAdoption } from "./adoption.ts";
 
 type TransactionQueryClient = Pick<PrismaClient, "portfolioEvent">;
 const MAX_PRISMA_SKIP = 2_147_483_647;
@@ -125,11 +126,7 @@ export async function listOwnedTransactionPositions(
 ): Promise<TransactionPositionCatalog> {
   return client.$transaction(
     async (transaction) => {
-      const user = await transaction.user.findUnique({
-        where: { id: userId },
-        select: { ledgerAdoptedAt: true },
-      });
-      if (!user?.ledgerAdoptedAt) {
+      if (!(await readLedgerAdoption(transaction, userId))) {
         return { ledgerAdopted: false, positions: [] };
       }
 

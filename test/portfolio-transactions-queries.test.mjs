@@ -177,6 +177,10 @@ test("transaction position catalog is owner-scoped and includes exact zero and a
     async $transaction(operation, options) {
       traces.push(["transaction", options.isolationLevel]);
       const transaction = {
+        async $queryRaw(_strings, userId) {
+          traces.push(["user", userId]);
+          return [{ ledgerAdoptedAt: new Date("2026-08-20T12:00:00Z") }];
+        },
         user: {
           async findUnique(args) {
             traces.push(["user", args.where.id]);
@@ -252,6 +256,9 @@ test("transaction position catalog is empty before ledger adoption", async () =>
     {
       $transaction(operation) {
         return operation({
+          async $queryRaw() {
+            return [{ ledgerAdoptedAt: null }];
+          },
           user: {
             async findUnique() {
               return { ledgerAdoptedAt: null };
@@ -282,6 +289,9 @@ test("transaction position catalog keeps minimum-scale balances plain", async ()
     {
       $transaction(operation) {
         return operation({
+          async $queryRaw() {
+            return [{ ledgerAdoptedAt: new Date("2026-08-20T12:00:00Z") }];
+          },
           user: {
             async findUnique() {
               return { ledgerAdoptedAt: new Date("2026-08-20T12:00:00Z") };

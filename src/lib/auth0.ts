@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { AUTH0_PROFILE_ROUTE } from "@/lib/auth-routes";
 import { logServerError } from "@/lib/logger";
 import prisma from "@/services/prisma/client";
+import { persistSessionUser } from "@/services/prisma/session-user";
 
 function getAuth0Domain() {
   if (process.env.AUTH0_DOMAIN) {
@@ -25,7 +26,8 @@ export const auth0 = new Auth0Client({
     profile: AUTH0_PROFILE_ROUTE,
   },
   onCallback: async (error, context, session) => {
-    const redirectBase = context.appBaseUrl ?? baseUrl ?? "http://localhost:3000";
+    const redirectBase =
+      context.appBaseUrl ?? baseUrl ?? "http://localhost:3000";
 
     if (error || !session?.user) {
       if (error) {
@@ -36,17 +38,10 @@ export const auth0 = new Auth0Client({
     }
 
     try {
-      await prisma.user.upsert({
-        where: { id: session.user.sub },
-        update: {
-          name: session.user.name ?? session.user.nickname ?? "Cryptfolio user",
-          email: session.user.email ?? `${session.user.sub}@unknown.local`,
-        },
-        create: {
-          id: session.user.sub,
-          name: session.user.name ?? session.user.nickname ?? "Cryptfolio user",
-          email: session.user.email ?? `${session.user.sub}@unknown.local`,
-        },
+      await persistSessionUser(prisma, {
+        id: session.user.sub,
+        name: session.user.name ?? session.user.nickname ?? "Cryptfolio user",
+        email: session.user.email ?? `${session.user.sub}@unknown.local`,
       });
     } catch (upsertError) {
       logServerError("auth.callback.upsert-user", upsertError);

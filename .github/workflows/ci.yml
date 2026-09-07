@@ -73,6 +73,7 @@ jobs:
           CRYPTFOLIO_LEDGER_TEST_DATABASE_URL: postgresql://cryptfolio_test:cryptfolio_test@127.0.0.1:5432/cryptfolio_test
           CRYPTFOLIO_VALUATION_TEST_DATABASE_URL: postgresql://cryptfolio_test:cryptfolio_test@127.0.0.1:5432/cryptfolio_test
         run: |
+          pnpm test:legacy-postgres
           pnpm test:ledger-postgres
           pnpm test:transactions-postgres
           pnpm test:valuation-postgres

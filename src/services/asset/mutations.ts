@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { databaseDecimalToPlain } from "../portfolio-transactions/decimal.ts";
+import { legacyAssetFields } from "./fields.ts";
 
 const USER_LOCK_NAMESPACE = "cryptfolio:opening-balances";
 const MAX_SERIALIZABLE_ATTEMPTS = 3;
@@ -67,9 +68,9 @@ async function lockUser(transaction: Prisma.TransactionClient, userId: string) {
     Array<{ id: string; ledgerAdoptedAt: Date | null }>
   >`
     UPDATE "User"
-    SET "ledgerAdoptedAt" = "ledgerAdoptedAt"
+    SET "name" = "name"
     WHERE "id" = ${userId}
-    RETURNING "id", "ledgerAdoptedAt"
+    RETURNING "id", (to_jsonb("User")->>'ledgerAdoptedAt')::timestamp(3) AS "ledgerAdoptedAt"
   `;
   const user = users[0];
   if (!user) throw new Error("Portfolio owner not found.");
@@ -93,7 +94,10 @@ export async function createOwnedAsset(
         "LEDGER_REQUIRED",
       );
     }
-    return transaction.userAsset.create({ data: input });
+    return transaction.userAsset.create({
+      data: input,
+      select: legacyAssetFields,
+    });
   });
 }
 
@@ -111,6 +115,7 @@ export async function updateOwnedAsset(
     const user = await lockUser(transaction, input.userId);
     const asset = await transaction.userAsset.findFirst({
       where: { id: input.id, userId: input.userId },
+      select: legacyAssetFields,
     });
     if (!asset) throw new Error("Asset not found.");
     if (user.ledgerAdoptedAt) {
@@ -130,6 +135,7 @@ export async function updateOwnedAsset(
       Math.max(Date.now(), input.expectedDate.getTime() + 1),
     );
     const updated = await transaction.userAsset.update({
+      select: legacyAssetFields,
       where: {
         id: input.id,
         userId: input.userId,
@@ -159,6 +165,7 @@ export async function renameOwnedAsset(
   return runSerializable(client, async (transaction) => {
     await lockUser(transaction, input.userId);
     return transaction.userAsset.update({
+      select: legacyAssetFields,
       where: { id: input.id, userId: input.userId },
       data: { assetName: input.assetName },
     });
@@ -179,7 +186,10 @@ export async function deleteOwnedAsset(
     if (!asset) throw new Error("Asset not found.");
 
     if (!user.ledgerAdoptedAt) {
-      return transaction.userAsset.delete({ where: { id, userId } });
+      return transaction.userAsset.delete({
+        where: { id, userId },
+        select: legacyAssetFields,
+      });
     }
 
     const balance = await transaction.assetMovement.aggregate({

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import { databaseDecimalToPlain } from "../portfolio-transactions/decimal.ts";
 import { listOwnedTransactionPositions } from "../portfolio-transactions/queries.ts";
+import { readLedgerAdoption } from "../portfolio-transactions/adoption.ts";
 import { calculateLivePortfolioWorth } from "../portfolio-valuation/live.ts";
 import type { createValuationMarketLoader } from "../portfolio-valuation/market-cache.ts";
 import {
@@ -51,12 +52,14 @@ export async function readOwnedInsights(
   );
   if (quoted.usedFallback && valuation.valuationStatus === "COMPLETE")
     valuation.valuationStatus = "STALE";
-  const [preference, storedTargets] = await Promise.all([
-    client.portfolioPreference.findUnique({ where: { userId } }),
-    client.allocationTarget.findMany({
-      where: { userId, position: { archivedAt: null } },
-    }),
-  ]);
+  const [preference, storedTargets] = catalog.ledgerAdopted
+    ? await Promise.all([
+        client.portfolioPreference.findUnique({ where: { userId } }),
+        client.allocationTarget.findMany({
+          where: { userId, position: { archivedAt: null } },
+        }),
+      ])
+    : [null, []];
   const minimumImpactUsd = preference
     ? databaseDecimalToPlain(preference.minimumImpactUsd)
     : "10";
@@ -171,6 +174,7 @@ export async function archiveScenario(
 }
 
 export async function listOwnedScenarios(client: PrismaClient, userId: string) {
+  if (!(await readLedgerAdoption(client, userId))) return [];
   const scenarios = await client.stressScenario.findMany({
     where: { userId, archivedAt: null },
     include: { shocks: { where: { userId } } },

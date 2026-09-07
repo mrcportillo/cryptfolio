@@ -35,10 +35,9 @@ export default async function TransactionPage({
 }: TransactionPageProps) {
   const { id } = await params;
   const user = await requireCurrentUser();
-  const [event, catalog] = await Promise.all([
-    findOwnedPortfolioEvent(prisma, user.id, id),
-    listOwnedTransactionPositions(prisma, user.id),
-  ]);
+  const catalog = await listOwnedTransactionPositions(prisma, user.id);
+  if (!catalog.ledgerAdopted) notFound();
+  const event = await findOwnedPortfolioEvent(prisma, user.id, id);
   if (!event) notFound();
 
   const positionNames: PositionNames = Object.fromEntries(

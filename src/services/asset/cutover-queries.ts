@@ -1,4 +1,6 @@
 import { Prisma, type PrismaClient, type UserAsset } from "@prisma/client";
+import { readLedgerAdoption } from "../portfolio-transactions/adoption.ts";
+import { legacyAssetFields } from "./fields.ts";
 import {
   addDecimals,
   databaseDecimalToPlain,
@@ -49,11 +51,7 @@ async function ledgerAdoptedAt(
   transaction: Prisma.TransactionClient,
   userId: string,
 ) {
-  const user = await transaction.user.findUnique({
-    where: { id: userId },
-    select: { ledgerAdoptedAt: true },
-  });
-  return user?.ledgerAdoptedAt ?? null;
+  return readLedgerAdoption(transaction, userId);
 }
 
 async function derivedPositions(
@@ -126,13 +124,24 @@ export async function findOwnedAssetForRead(
   id: string,
 ): Promise<AssetReadModel | null> {
   return readConsistently(client, async (transaction) => {
-    const [adoptedAt, position] = await Promise.all([
-      ledgerAdoptedAt(transaction, userId),
-      transaction.userAsset.findFirst({ where: { id, userId } }),
-    ]);
+    const adoptedAt = await ledgerAdoptedAt(transaction, userId);
+    const position = await transaction.userAsset.findFirst({
+      where: { id, userId },
+      select: {
+        ...legacyAssetFields,
+        ...(adoptedAt
+          ? { archivedAt: true, ledgerInitialAssetName: true }
+          : {}),
+      },
+    });
     if (!position) return null;
     if (!adoptedAt) {
-      return { ...position, amount: legacyAmountToPlain(position.amount) };
+      return {
+        ...position,
+        archivedAt: null,
+        ledgerInitialAssetName: null,
+        amount: legacyAmountToPlain(position.amount),
+      };
     }
 
     const balance = await transaction.assetMovement.aggregate({
@@ -144,6 +153,8 @@ export async function findOwnedAssetForRead(
     ]);
     return {
       ...position,
+      archivedAt: position.archivedAt ?? null,
+      ledgerInitialAssetName: position.ledgerInitialAssetName ?? null,
       amount: balance._sum.quantityDelta
         ? databaseDecimalToPlain(balance._sum.quantityDelta)
         : "0",

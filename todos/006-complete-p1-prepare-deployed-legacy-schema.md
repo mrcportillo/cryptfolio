@@ -1,5 +1,5 @@
 ---
-status: ready
+status: complete
 priority: p1
 issue_id: "006"
 tags: [deployment, migration, portfolio]
@@ -43,7 +43,7 @@ metadata. Keep production activation separate and retain recovery evidence.
 - [x] Synthetic deployed-schema migration and final adoption verification pass.
 - [x] Runbook describes locks, future cascade deletion, baseline, and rollback.
 - [x] Complete the approved one-day Neon copy migration/adoption rehearsal.
-- [ ] CI passes for the proposed change.
+- [x] CI passes for the proposed change.
 
 ## Work Log
 
@@ -73,3 +73,10 @@ copy passed preparation, strict preflight, baseline resolution, every migration,
 opening adoption, idempotent retry, and final catalog/fingerprint verification.
 All original user, position, and archive rows remained unchanged. Initial pricing
 and hosted application/scheduler checks remain in #17.
+
+Code commit `365caea` passed Portfolio CI (run `34351926840`), including all
+PostgreSQL suites, audit, typecheck, lint, and credential-free build. The Vercel
+preview also succeeded. PR #23 contains the repair. The copy's initial snapshot
+was complete, and the actual local cron route returned 401 without authorization
+and 200 on two authorized invocations without duplicates. Production remains
+unchanged; browser verification and activation are tracked in #17.

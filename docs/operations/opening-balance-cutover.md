@@ -29,7 +29,42 @@ removes only uniquely named `cryptfolio_ledger_test_*` schemas. Create the empty
 test database separately if it does not exist. Never substitute a production
 or shared database.
 
-## 1. Verify and baseline the existing schema
+## 1. Prepare, verify, and baseline the existing schema
+
+First preview the supported legacy-schema preparation. It runs in a read-only
+transaction unless `apply=true` is explicitly supplied:
+
+```bash
+psql "$POSTGRES_URL_NON_POOLING" \
+  -f scripts/portfolio-ledger/prepare-legacy-schema.sql
+```
+
+Older deployed databases can lack the three secondary indexes in the baseline
+and use `ON DELETE RESTRICT` on the two legacy foreign keys. The preparation
+script accepts only those known differences. It rejects unknown column types,
+defaults, keys, and incorrectly defined existing indexes. Physical column order
+and gaps from previously dropped columns are harmless and are not compared;
+the script never reorders or rebuilds the legacy tables.
+
+Review the printed actions and rehearse them on an isolated database copy with
+a retained recovery snapshot. A preview connected to the production database
+is not an isolated rehearsal environment. If preparation is needed, apply it
+before recording baseline metadata:
+
+```bash
+psql "$POSTGRES_URL_NON_POOLING" -v apply=true \
+  -f scripts/portfolio-ledger/prepare-legacy-schema.sql
+```
+
+Apply takes short write-blocking locks on the three legacy tables, creates the
+missing indexes, and changes the two foreign keys to `ON DELETE CASCADE`. This
+matches the repository baseline: future deletion of an unadopted user can
+delete its positions, and deletion of a legacy position can delete its
+archives. The change affects all owners. No existing rows are deleted or
+updated. Whole-table fingerprints must match before commit, and the strict
+catalog check runs again inside the same transaction. Lock acquisition times
+out after five seconds; any failure rolls back the complete preparation.
+Retrying successful preparation performs no further schema changes.
 
 Run the read-only preflight against the existing database for the one personal
 portfolio owner:
@@ -44,8 +79,8 @@ The script aborts on baseline drift, missing ownership objects, negative,
 non-finite, rounded, or unrepresentable quantities, and oversized idempotency
 keys. Record the reported legacy and archive fingerprints and row counts.
 
-Only after the schema matches the baseline exactly, mark the baseline migration
-as already applied:
+Only after the logical schema matches the baseline and strict preflight passes,
+mark the baseline migration as already applied:
 
 ```bash
 pnpm prisma migrate resolve --applied 20260820120000_legacy_baseline
@@ -54,7 +89,8 @@ pnpm prisma migrate status
 
 This resolve command writes migration metadata only. It must replace, not
 precede, execution of the baseline `CREATE TABLE` statements on an existing
-database. A new empty database applies both migrations normally.
+database. A new empty database applies the migration chain normally and does
+not need legacy preparation or baseline resolution.
 
 ## 2. Deploy the additive ledger schema
 
@@ -70,6 +106,13 @@ Deferred database constraints require every opening event to finish its
 transaction with exactly one movement for the opening position. Ledger history
 also restricts ordinary user deletion; adopted-account erasure requires a
 future explicit, audited workflow.
+
+The function-schema migration pins all portfolio routines to the schema in
+which they were installed. Earlier migrations captured the connection's search
+path, which can default to `"$user", public` on hosted direct connections.
+Final verification must retain its exact function-configuration checks; do not
+relax them to accept this default. The corrective migration changes function
+configuration only, preserving function bodies and portfolio data.
 
 Prisma 5.10 does not reliably surface an error raised only by a deferred
 constraint at interactive-transaction commit. The opening converter and every
@@ -159,6 +202,10 @@ created by the daily-valuation slice, not by this converter.
 
 - Before conversion, roll application code back and leave the additive tables
   unused. Do not drop them during an incident.
+- Failed legacy preparation rolls back its indexes and foreign-key changes.
+  Successful preparation is compatible with the current legacy pages; leave
+  it in place while investigating a later migration failure. Keep the recovery
+  snapshot and before/after verification evidence outside the repository.
 - A failed apply transaction leaves no openings and no adoption boundary.
 - After a successful conversion, disable ledger reads/writes while
   investigating. The database will not permit returning to the retained legacy

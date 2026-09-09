@@ -603,6 +603,7 @@ test("schema and migrations enforce ledger invariants offline", async () => {
     migrationLock,
     cli,
     preflight,
+    legacySchemaCheck,
     verification,
   ] = await Promise.all([
     readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
@@ -640,6 +641,13 @@ test("schema and migrations enforce ledger invariants offline", async () => {
     ),
     readFile(
       new URL("../scripts/portfolio-ledger/preflight.sql", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../scripts/portfolio-ledger/legacy-schema-check.sql",
+        import.meta.url,
+      ),
       "utf8",
     ),
     readFile(
@@ -710,9 +718,14 @@ test("schema and migrations enforce ledger invariants offline", async () => {
   assert.match(cli, /\$5::numeric\(65,30\)/);
   assert.doesNotMatch(cli, /UPDATE "UserAsset"|UPDATE "AssetArchive"/);
   assert.match(preflight, /BEGIN TRANSACTION READ ONLY/);
-  assert.match(preflight, /pg_get_constraintdef/);
-  assert.match(preflight, /indisexclusion/);
-  assert.match(preflight, /datetime_precision/);
+  assert.match(
+    preflight,
+    /set_config\('cryptfolio\.legacy_preparation', 'off', true\)/,
+  );
+  assert.match(preflight, /\\ir legacy-schema-check\.sql/);
+  assert.match(legacySchemaCheck, /pg_get_constraintdef/);
+  assert.match(legacySchemaCheck, /indisexclusion/);
+  assert.match(legacySchemaCheck, /datetime_precision/);
   assert.match(verification, /expected_archive_fingerprint/);
   assert.match(verification, /expected_opening_fingerprint/);
   assert.match(verification, /User_ledger_adoption_boundary_guard/);

@@ -1,5 +1,5 @@
 ---
-status: ready
+status: complete
 priority: p1
 issue_id: "005"
 tags: [incident, compatibility, portfolio]
@@ -44,7 +44,7 @@ amounts for an adopted owner after an unrelated query failure.
 - [x] New feature pages show setup states before accessing unavailable tables.
 - [x] Trend retains market movers/charts independently of personal insights.
 - [x] Regression tests exercise a real legacy database and adopted portfolios.
-- [ ] Verify the forward fix in the browser and record rollout evidence.
+- [x] Verify the forward fix in the browser and record rollout evidence.
 
 ## Work Log
 
@@ -71,3 +71,12 @@ failure. See `docs/verification/legacy-recovery/README.md` for evidence.
 
 GitHub incident #20 tracks the repair. Issues #6 and #17 now record the runtime
 failure and recovery, with production migration/adoption still pending.
+
+### Production verification completed
+
+PR #21 merged as `7d034f5`. CI passed on both PR and main. Vercel deployment
+`EwGt2oDQWrxn6CYEQZR1eagFJ3wK` was explicitly promoted, ending the temporary rollback.
+Authenticated production Home, Trend, Transactions, weekly reports, and Scenarios
+passed between 12:13Z and 12:15Z. Deployment-filtered runtime logs showed zero
+warning/error/fatal entries. No production database or holding was changed.
+Issue #20 is resolved; operational readiness remains in #17.

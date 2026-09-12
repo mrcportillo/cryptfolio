@@ -37,7 +37,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Auth0's callback persists the session owner with Prisma.
+  runtime: "nodejs",
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|images/logo\\.png$).*)",
   ],
 };

@@ -156,18 +156,22 @@ if (!configuredUrl) {
     const baseUrl = validateDisposableDatabaseUrl(configuredUrl);
     const ledgerSchema = schemaName("ledger");
     const baselineSchema = schemaName("baseline");
+    const deployedSchema = schemaName("deployed");
     assertSafeSchema(ledgerSchema);
     assertSafeSchema(baselineSchema);
+    assertSafeSchema(deployedSchema);
 
     const adminUrl = prismaUrl(baseUrl, "public");
     const ledgerPrismaUrl = prismaUrl(baseUrl, ledgerSchema);
     const ledgerPsqlUrl = psqlUrl(baseUrl, ledgerSchema);
     const baselinePsqlUrl = psqlUrl(baseUrl, baselineSchema);
+    const deployedPsqlUrl = psqlUrl(baseUrl, deployedSchema);
+    const deployedPrismaUrl = prismaUrl(baseUrl, deployedSchema);
     const admin = new PrismaClient({ datasources: { db: { url: adminUrl } } });
     let client;
 
     try {
-      for (const schema of [ledgerSchema, baselineSchema]) {
+      for (const schema of [ledgerSchema, baselineSchema, deployedSchema]) {
         await admin.$executeRawUnsafe(
           `DROP SCHEMA IF EXISTS "${schema}" CASCADE`,
         );
@@ -912,6 +916,243 @@ if (!configuredUrl) {
         },
       );
 
+      await t.test(
+        "deployed legacy preparation is read-only by default and preserves rows",
+        () => {
+          expectSuccess(
+            psqlFile(
+              deployedPsqlUrl,
+              "test/fixtures/deployed-legacy-schema.sql",
+            ),
+            "deployed schema fixture",
+          );
+          expectSuccess(
+            psqlCommand(
+              deployedPsqlUrl,
+              `
+          INSERT INTO "User" VALUES ('auth0|deployed', 'Synthetic owner', 'deployed@example.test');
+          INSERT INTO "UserAsset" (id, "userId", "assetId", amount, "assetName", date)
+            VALUES ('deployed-btc', 'auth0|deployed', 'bitcoin', 1.25, 'Synthetic wallet', '2026-08-01');
+          INSERT INTO "AssetArchive" VALUES ('deployed-archive', 'deployed-btc', 0.5, '2026-08-01');
+        `,
+            ),
+            "deployed data fixture",
+          );
+          const evidenceSql = `SELECT jsonb_build_object(
+          'users', (SELECT jsonb_agg(to_jsonb(r) ORDER BY id) FROM "User" r),
+          'positions', (SELECT jsonb_agg(to_jsonb(r) ORDER BY id) FROM "UserAsset" r),
+          'archives', (SELECT jsonb_agg(to_jsonb(r) ORDER BY id) FROM "AssetArchive" r)
+        )::text AS evidence`;
+          const rowsBefore = psqlCommand(deployedPsqlUrl, evidenceSql).stdout;
+          const definitionsSql = `SELECT indexname, indexdef FROM pg_indexes WHERE schemaname=current_schema() ORDER BY indexname;
+          SELECT conname, pg_get_constraintdef(c.oid) FROM pg_constraint c JOIN pg_class r ON r.oid=c.conrelid
+          JOIN pg_namespace n ON n.oid=r.relnamespace WHERE n.nspname=current_schema() ORDER BY conname`;
+          const definitionsBefore = psqlCommand(
+            deployedPsqlUrl,
+            definitionsSql,
+          ).stdout;
+          const initialPreflight = psqlFile(
+            deployedPsqlUrl,
+            "scripts/portfolio-ledger/preflight.sql",
+            { user_id: "auth0|deployed" },
+          );
+          assert.notEqual(initialPreflight.status, 0);
+          assert.match(
+            initialPreflight.stderr,
+            /0 column, 3 index, 4 constraint/,
+          );
+          const preview = psqlFile(
+            deployedPsqlUrl,
+            "scripts/portfolio-ledger/prepare-legacy-schema.sql",
+          );
+          expectSuccess(preview, "preparation preview");
+          assert.match(preview.stdout, /Dry run only/);
+          assert.match(preview.stdout, /Create UserAsset_assetId_idx/);
+          assert.match(
+            preview.stdout,
+            /Change AssetArchive_userAssetId_fkey deletion to CASCADE/,
+          );
+          assert.equal(
+            psqlCommand(deployedPsqlUrl, definitionsSql).stdout,
+            definitionsBefore,
+          );
+          assert.equal(
+            psqlCommand(deployedPsqlUrl, evidenceSql).stdout,
+            rowsBefore,
+          );
+
+          expectSuccess(
+            psqlCommand(
+              deployedPsqlUrl,
+              `CREATE INDEX "UserAsset_assetId_idx" ON "UserAsset"("assetName")`,
+            ),
+            "wrong-column index fixture",
+          );
+          const malformed = psqlFile(
+            deployedPsqlUrl,
+            "scripts/portfolio-ledger/prepare-legacy-schema.sql",
+            { apply: "true" },
+          );
+          assert.notEqual(malformed.status, 0);
+          assert.match(malformed.stderr, /Legacy baseline mismatch/);
+          expectSuccess(
+            psqlCommand(deployedPsqlUrl, `DROP INDEX "UserAsset_assetId_idx"`),
+            "remove malformed fixture index",
+          );
+          assert.equal(
+            psqlCommand(deployedPsqlUrl, definitionsSql).stdout,
+            definitionsBefore,
+          );
+
+          const applied = psqlFile(
+            deployedPsqlUrl,
+            "scripts/portfolio-ledger/prepare-legacy-schema.sql",
+            { apply: "true" },
+          );
+          expectSuccess(applied, "preparation apply");
+          assert.match(applied.stdout, /Legacy schema prepared/);
+          assert.equal(
+            psqlCommand(deployedPsqlUrl, evidenceSql).stdout,
+            rowsBefore,
+          );
+          const preparedPreflight = psqlFile(
+            deployedPsqlUrl,
+            "scripts/portfolio-ledger/preflight.sql",
+            { user_id: "auth0|deployed" },
+          );
+          expectSuccess(
+            preparedPreflight,
+            "prepared preflight with different physical column order",
+          );
+          const fingerprints = preparedPreflight.stdout.match(/[a-f0-9]{64}/g);
+          assert.equal(fingerprints?.length, 2);
+          const definitionsAfter = psqlCommand(
+            deployedPsqlUrl,
+            definitionsSql,
+          ).stdout;
+          expectSuccess(
+            psqlFile(
+              deployedPsqlUrl,
+              "scripts/portfolio-ledger/prepare-legacy-schema.sql",
+              { apply: "true" },
+            ),
+            "idempotent preparation retry",
+          );
+          assert.equal(
+            psqlCommand(deployedPsqlUrl, definitionsSql).stdout,
+            definitionsAfter,
+          );
+          assert.equal(
+            psqlCommand(deployedPsqlUrl, evidenceSql).stdout,
+            rowsBefore,
+          );
+
+          const migrationEnv = {
+            POSTGRES_PRISMA_URL: deployedPrismaUrl,
+            POSTGRES_URL_NON_POOLING: deployedPrismaUrl,
+          };
+          expectSuccess(
+            command(
+              "pnpm",
+              [
+                "prisma",
+                "migrate",
+                "resolve",
+                "--applied",
+                "20260820120000_legacy_baseline",
+              ],
+              migrationEnv,
+            ),
+            "resolve checked deployed baseline",
+          );
+          expectSuccess(
+            command("pnpm", ["prisma", "migrate", "deploy"], migrationEnv),
+            "migrate prepared deployed schema",
+          );
+          expectSuccess(
+            command(
+              "pnpm",
+              [
+                "prisma",
+                "migrate",
+                "diff",
+                "--from-url",
+                deployedPrismaUrl,
+                "--to-schema-datamodel",
+                "prisma/schema.prisma",
+                "--exit-code",
+              ],
+              migrationEnv,
+            ),
+            "prepared deployed schema has no Prisma drift",
+          );
+          const opening = parseCli(
+            cli(deployedPrismaUrl, [
+              "--user-id",
+              "auth0|deployed",
+              "--adoption-at",
+              adoptionAt,
+            ]),
+            "prepared opening dry run",
+          );
+          const openingApply = parseCli(
+            cli(deployedPrismaUrl, [
+              "--user-id",
+              "auth0|deployed",
+              "--adoption-at",
+              adoptionAt,
+              "--apply",
+              "--expected-fingerprint",
+              opening.legacyFingerprint,
+            ]),
+            "prepared opening apply",
+          );
+          assert.equal(openingApply.alreadyApplied, false);
+          const verificationVariables = {
+            user_id: "auth0|deployed",
+            adoption_at: adoptionAt,
+            expected_legacy_fingerprint: opening.legacyFingerprint,
+            expected_archive_fingerprint: fingerprints[1],
+            expected_opening_fingerprint: openingApply.openingFingerprint,
+          };
+          expectSuccess(
+            psqlCommand(
+              deployedPsqlUrl,
+              `
+              ALTER FUNCTION assert_opening_event_movement(text)
+                SET search_path = "$user", ${deployedSchema};
+            `,
+            ),
+            "hosted migration search-path fixture",
+          );
+          const inheritedSearchPath = psqlFile(
+            deployedPsqlUrl,
+            "scripts/portfolio-ledger/verify.sql",
+            verificationVariables,
+          );
+          assert.notEqual(inheritedSearchPath.status, 0);
+          assert.match(
+            inheritedSearchPath.stderr,
+            /2 function definition differences/,
+          );
+          expectSuccess(
+            psqlFile(
+              deployedPsqlUrl,
+              "prisma/migrations/20260909120000_pin_portfolio_function_schema/migration.sql",
+            ),
+            "pin inherited function search path",
+          );
+          expectSuccess(
+            psqlFile(
+              deployedPsqlUrl,
+              "scripts/portfolio-ledger/verify.sql",
+              verificationVariables,
+            ),
+            "verify adopted deployed schema without changing physical column order",
+          );
+        },
+      );
+
       await t.test("preflight rejects timestamp precision drift", () => {
         expectSuccess(
           psqlFile(
@@ -1073,7 +1314,7 @@ if (!configuredUrl) {
       );
     } finally {
       await client?.$disconnect();
-      for (const schema of [ledgerSchema, baselineSchema]) {
+      for (const schema of [ledgerSchema, baselineSchema, deployedSchema]) {
         await admin.$executeRawUnsafe(
           `DROP SCHEMA IF EXISTS "${schema}" CASCADE`,
         );
